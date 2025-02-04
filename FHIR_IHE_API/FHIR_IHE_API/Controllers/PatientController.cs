@@ -16,9 +16,7 @@ namespace FHIR_IHE_API.Controllers
             if (string.IsNullOrEmpty(name))
             {
                 return BadRequest("Name is required.");
-            }
-
-            var result = _client.Search<Patient>(new string[] {$"name={name}"});
+            }var result = _client.Search<Patient>(new string[] {$"name={name}"});
 
             var patients = result?.Entry
                 .Where(e => e.Resource is Patient)

@@ -14,6 +14,17 @@ namespace FHIR_IHE_API
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowVueApp", builder =>
+                {
+                    builder.WithOrigins("http://localhost:5173").AllowAnyMethod()
+                        .AllowAnyHeader();
+                });
+            });
+
+            builder.Services.AddControllers();
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -22,6 +33,8 @@ namespace FHIR_IHE_API
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
+
+            app.UseCors("AllowVueApp");
 
             app.UseHttpsRedirection();
 
