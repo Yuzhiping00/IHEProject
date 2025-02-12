@@ -1,4 +1,6 @@
 
+using Hl7.Fhir.Rest;
+
 namespace FHIR_IHE_API
 {
     public class Program
@@ -9,7 +11,21 @@ namespace FHIR_IHE_API
 
             // Add services to the container.
 
-            builder.Services.AddControllers();
+            builder.Services.AddControllers().AddNewtonsoftJson();
+
+            // Register HttpClientFactory 
+            builder.Services.AddHttpClient();
+
+            //Register FhirClient as Scoped(one instance per request)
+            builder.Services.AddScoped<FhirClient>(serviceProvider =>
+            {
+                var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+                var httpClient = httpClientFactory.CreateClient();
+
+                return new FhirClient("http://localhost:8090/fhir", httpClient);
+
+            });
+
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
@@ -23,8 +39,6 @@ namespace FHIR_IHE_API
                 });
             });
 
-            builder.Services.AddControllers();
-
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -36,7 +50,7 @@ namespace FHIR_IHE_API
 
             app.UseCors("AllowVueApp");
 
-            app.UseHttpsRedirection();
+           // app.UseHttpsRedirection();
 
             app.UseAuthorization();
 
