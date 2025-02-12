@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_URL = "http://localhost:5000/api/pdq";
+const API_URL = "http://localhost:5000/api/patient";
 
 export default {
     searchPatients(name) {

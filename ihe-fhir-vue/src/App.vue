@@ -1,11 +1,4 @@
-<script setup>
-import PatientSearch from '@/components/PatientSearch.vue'
-</script>
-
 <template>
-    <PatientSearch>
-    </PatientSearch>
+    <router-view></router-view>
 </template>
 
-<style scoped>
-</style>

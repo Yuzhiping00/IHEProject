@@ -1,7 +1,9 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
+import { useRouter } from "vue-router"
 import patientService from "@/services/patientService.js"
 
+const router = useRouter()
 const patientName = ref('')
 const patients = ref([])
 const loading = ref(false)
@@ -28,8 +30,8 @@ const handleSearch = async () => {
     patientNotFound.value = false
 
   } catch (error) {
-    console.log('Error fetching patients : ', error)
     patients.value = []
+    router.push({ name: 'NotFound' })
   }
 }
 
@@ -39,18 +41,15 @@ const handleSearch = async () => {
   <v-sheet class="mx-auto pb-5" width="1000">
     <v-form @submit.prevent>
       <v-text-field v-model="patientName" label="User Name" :rules="rules"></v-text-field>
-      <v-btn type="submit" class="mt-2" @click.native="handleSearch">Submit</v-btn>
-
+      <v-btn type="submit" class="mt-2" @click.native="handleSearch">Search Patient</v-btn>
     </v-form>
-
   </v-sheet>
   <div>
     <v-alert class="mt-10" type="info" elevation="2" v-if="patientNotFound && patientName">No Patients Found</v-alert>
   </div>
-  <v-sheet >
+  <v-sheet>
     <v-list lines="three" color="cyan-lighten-1">
-      <v-list-item v-for="patient in patients" :key="patient.id" :title="patient.name"
-        :subtitle="patient.birthDate"
+      <v-list-item v-for="patient in patients" :key="patient.id" :title="patient.name" :subtitle="patient.birthDate"
         :prepend-avatar="avartar">
       </v-list-item>
     </v-list>
