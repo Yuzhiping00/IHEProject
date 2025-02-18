@@ -1,101 +1,114 @@
-using System.Text;
-using Hl7.Fhir.Model;
+
+using System.Reflection.Metadata;
+using FHIR_IHE_API.Data;
+using FHIR_IHE_API.Models;
 using Hl7.Fhir.Rest;
-using Hl7.Fhir.Serialization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace FHIR_IHE_API.Controllers
 {
+    [Route("api/[controller]")]
     [ApiController]
-    [Route("api/patient")]
     public class PatientController : ControllerBase
     {
-        // Injecting FhirClient through constructor
-        private readonly FhirClient _client;
+        private readonly ApplicationDbContext _context;
 
-        private readonly FhirJsonParser _fhirJsonParser;
-
-        public PatientController(FhirClient client)
+        // Injecting database in constructor
+        public PatientController(ApplicationDbContext context)
         {
-            _client = client; // _client is now injected
-            _fhirJsonParser = new FhirJsonParser();
+           _context = context;
         }
 
-        [HttpPost("create")]
-        public async Task<IActionResult> CreatePatient()
+        //GET: api/patient
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<Patient>>> GetPatients()
         {
+            var patients = await _context.Patients.ToListAsync();
+
+            if (!patients.Any())
+            {
+                return NotFound("No patient has been found!");
+            }
+
+            return patients;
+        }
+
+        //POST: api/patient/create
+        [HttpPost("create")]
+        public async Task<ActionResult<Patient>> CreatePatient(Patient patient)
+        {
+           _context.Patients.Add(patient);
+           try
+           {
+               await _context.SaveChangesAsync();
+               return patient;
+           }
+           catch (Exception ex)
+           {
+               return BadRequest(ex.Message);
+           }
+
+        }
+
+        //GET: api/patient/5
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Patient>> GetPatient(int id)
+        {
+           var patient = await _context.Patients.FindAsync(id);
+
+           if (patient == null)
+           {
+               return NotFound();
+           }
+
+           return patient;
+        }
+
+        // PUT: api/patient/update
+        [HttpPut("update")]
+        public async Task<IActionResult> PutPatient(int id, Patient patient)
+        {
+            if (id != patient.Id)
+            { 
+                return BadRequest();
+            }
+
+            _context.Entry(patient).State = EntityState.Modified;
+
             try
             {
-                using var reader = new StreamReader((Request.Body), Encoding.UTF8);
-                var json = await reader.ReadToEndAsync();
-
-                var patient = _fhirJsonParser.Parse<Patient>(json);
-                if (patient == null)
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!_context.Patients.Any(e => e.Id == id))
                 {
-                    return BadRequest("Invalid FHIR patient Json");
+                    return NotFound();
                 }
 
-                var creatdPatient = await _client.CreateAsync(patient);
-                return CreatedAtAction(nameof(GetPatientById), new {id = creatdPatient?.Id}, creatdPatient);
+                throw;
             }
 
-            catch (FhirOperationException ex)
-            {
-                // handle FHIR specific exceptions
-                return BadRequest($"FHIR error: {ex.Message} ");
-            }
-
-            catch (SystemException ex)
-            {
-                // handle general errors
-                return StatusCode(500, $"Internal server error");
-            }
+            return NoContent();
         }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetPatientById(string id)
+        //DELETE: api/patient/5
+        [HttpDelete("delete/{id}")]
+        public async Task<IActionResult> DeletePatient(int id)
         {
-            try
-            {
-                var patient = await _client.ReadAsync<Patient>($"Patient/{id}");
+            var patient = await _context.Patients.FindAsync(id);
 
-                return Ok(patient);
-            }
-            catch (FhirOperationException ex)
+            if (patient == null)
             {
-                return NotFound($"FHiR error: {ex.Message}");
+                return NotFound();
             }
+
+            _context.Patients.Remove(patient);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
         }
 
-        [HttpGet("search")]
-        public IActionResult SearchPatients([FromQuery] string name)
-        {
-            if (string.IsNullOrEmpty(name))
-            {
-                return BadRequest("Name is required.");
-            }
-            
-            var result = _client.Search<Patient>(new string[] {$"name={name}"});
-
-            var patients = result?.Entry
-                .Where(e => e.Resource is Patient)
-                .Select(e => (Patient) e.Resource)
-                .Select(p => new
-                {
-                    p.Id,
-                    Name = p.Name.FirstOrDefault()?.ToString(),
-                    p.Gender,
-                    p.BirthDate
-
-                }).ToList();
-
-            if (patients == null || !patients.Any())
-            {
-                return NotFound("There is no patient matching the name");
-            }
-
-            return Ok(patients);
-
-        }
     }
 }

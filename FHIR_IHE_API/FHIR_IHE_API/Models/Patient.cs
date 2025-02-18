@@ -17,11 +17,10 @@ namespace FHIR_IHE_API.Models
         public string? GivenName { get; set; }
 
         [Required]
-        public string? Gender { get; set; } 
+        public string? Gender { get; set; }
 
-        [Required]
-        public DateOnly BirthDate { get; set; }
+        [Required] public DateTime BirthDate { get; set; }
 
-        public string ResourceType => "Patient";
+        string ResourceType => "Patient";
     }
 }
