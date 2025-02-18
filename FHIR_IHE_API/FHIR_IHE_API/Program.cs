@@ -1,5 +1,7 @@
 
+using FHIR_IHE_API.Data;
 using Hl7.Fhir.Rest;
+using Microsoft.EntityFrameworkCore;
 
 namespace FHIR_IHE_API
 {
@@ -10,6 +12,11 @@ namespace FHIR_IHE_API
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
+            builder.Services.AddDbContext<PatientDbContext>(options =>
+            {
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+
+            });
 
             builder.Services.AddControllers().AddNewtonsoftJson();
 
