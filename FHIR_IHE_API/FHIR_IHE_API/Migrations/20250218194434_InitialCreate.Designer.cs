@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace FHIR_IHE_API.Migrations
 {
-    [DbContext(typeof(PatientDbContext))]
+    [DbContext(typeof(ApplicationDbContext))]
     [Migration("20250218194434_InitialCreate")]
     partial class InitialCreate
     {
