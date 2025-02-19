@@ -17,7 +17,7 @@ const routes = [
 ]
 
 const router = createRouter({
-    history: createWebHistory(import.meta.env.VUE_APP_BASE_URL), 
+    history: createWebHistory(import.meta.env.VITE_API_URL), 
     routes, 
 })
 
