@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from "vue-router"
-import patientService from "@/services/patientService.js"
+import patientService from "@/services/resources/patientService.js"
 
 const router = useRouter()
 const patientName = ref('')
