@@ -40,6 +40,7 @@ export abstract class ApiService<T> extends AxiosService {
     return this.axios.get<T>(url).catch(this.genericErrorHandler);
   }
 
+
   /**
    * Patches a resource.
    * @param path The resource path.

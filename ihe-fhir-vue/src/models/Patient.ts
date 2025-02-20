@@ -1,7 +1,7 @@
 export default class Patient {
     id?: number;
-    familyName!: string;
-    givenName!: string;
-    gender!: string;
-    birthDate!: Date;
+    familyName?: string | undefined;
+    givenName?: string | undefined;
+    gender?: string | undefined;
+    birthDate?: Date | undefined;
 }

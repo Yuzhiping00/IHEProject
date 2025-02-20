@@ -36,6 +36,7 @@ const submitForm = async () => {
         showSuccessDialog.value = true
         resetForm()
         resetValidation()
+        router.push('/patients')
     } else {
         errorMessage.value = response?.statusText || "Failed to create patient."
         showErrorSnackbar.value = true
@@ -68,29 +69,33 @@ const closeSuccessDialog = () => {
                     <v-select v-model="patientStore.patient.gender" label="Gender" :items="items"
                         :rules="[v => !!v || 'Patient Gender is required']" required />
                     <v-container class="mt-6">
-                        <v-row no-gutters justify="start">
+                        <v-row no-gutters justify="center">
                             <v-col cols="12" md="2">
-                                <v-btn :loading="isSubmitting" type="submit" color="success" rounded="xl" class="mb-3">
+                                <v-btn type="submit" color="success" rounded="xl" class="mb-3">
                                     Create
                                 </v-btn>
                             </v-col>
                             <v-col cols="12" md="3">
-                                <v-btn color="error" rounded="xl" class="mb-3"  @click="resetForm">
+                                <v-btn color="error" rounded="xl" class="mb-3" @click="resetForm">
                                     Reset Form
                                 </v-btn>
                             </v-col>
                             <v-col cols="12" md="3">
-                                <v-btn color="primary" rounded="xl" class="mb-3"  @click="resetValidation">
+                                <v-btn color="primary" rounded="xl" class="mb-3" @click="resetValidation">
                                     Reset Validation
                                 </v-btn>
                             </v-col>
                         </v-row>
                     </v-container>
+                    <v-overlay :model-value="isSubmitting" class="align-center justify-center">
+                        <v-progress-circular :rotate="360" :size="100" :width="10" color="purple" indeterminate>
+                        </v-progress-circular>
+                    </v-overlay>
                 </v-form>
             </v-card-text>
         </v-card>
 
-        <v-dialog v-model="showSuccessDialog" max-width="400">
+        <v-dialog v-model="showSuccessDialog" block>
             <v-card>
                 <v-card-title>
                     Success
@@ -105,15 +110,24 @@ const closeSuccessDialog = () => {
                 </v-card-actions>
             </v-card>
         </v-dialog>
-        <v-snackbar v-model="showErrorSnackbar" color="red" timeout="3000">
-            {{ errorMessage }}
-            <template v-slot:actions>
-                <v-btn color="white" @click.native="showErrorSnackbar = false">
-                    Close
-                </v-btn>
-            </template>
-        </v-snackbar>
+
+    </v-container>
+    <v-container class="text-center ma-2">
+        <v-card>
+            <v-snackbar v-model="showErrorSnackbar" color="purple" variant="outlined">
+                {{ errorMessage }}
+                <template v-slot:actions>
+                    <v-btn color="white" variant="outlined" @click="showErrorSnackbar = false">
+                        Close
+                    </v-btn>
+                </template>
+            </v-snackbar>
+        </v-card>
     </v-container>
 </template>
 
-<style scoped></style>
+<style scoped>
+.v-progress-circular {
+    margin: 1rem;
+}
+</style>
