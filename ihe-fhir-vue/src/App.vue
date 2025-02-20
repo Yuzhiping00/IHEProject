@@ -1,15 +1,14 @@
 <template>
-  <img alt="Vue logo" src="./assets/logo.png">
-  <PatientSearch/>
+  <PatientCreate/>
 </template>
 
 <script lang="ts">
 import { Options, Vue } from 'vue-class-component';
-import PatientSearch from './components/PatientSearch.vue';
+import PatientCreate from './components/PatientCreate.vue';
 
 @Options({
   components: {
-    PatientSearch,
+    PatientCreate,
   },
 })
 export default class App extends Vue {}

@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FHIR_IHE_API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/patient")]
     [ApiController]
     public class PatientController : ControllerBase
     {
@@ -36,7 +36,7 @@ namespace FHIR_IHE_API.Controllers
 
         //POST: api/patient/create
         [HttpPost("create")]
-        public async Task<ActionResult<Patient>> CreatePatient(Patient patient)
+        public async Task<ActionResult<Patient>> CreatePatient([FromBody]Patient patient)
         {
            _context.Patients.Add(patient);
            try

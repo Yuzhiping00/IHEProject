@@ -9,11 +9,11 @@ namespace FHIR_IHE_API.Models
         public int Id { get; set; }
 
         [Required]
-        [MaxLength(100)]
+        [MaxLength(20)]
         public string? FamilyName { get; set; }
 
         [Required]
-        [MaxLength(100)]
+        [MaxLength(20)]
         public string? GivenName { get; set; }
 
         [Required]

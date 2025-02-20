@@ -5,7 +5,6 @@ import Patient from "@/models/Patient";
 
 class PatientService extends ApiService<Patient> {
     resourcePath: string ="patient";
-
 }
 
 export default new PatientService();

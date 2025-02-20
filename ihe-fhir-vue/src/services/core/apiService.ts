@@ -55,8 +55,13 @@ export abstract class ApiService<T> extends AxiosService {
    * @param path The resource path.
    * @param data The resource to create.
    */
-  post(data: any): Promise<AxiosResponse<T, any>> {
-    return this.axios.post<T>(this.path, data).catch(this.genericErrorHandler);
+  async post(data: any): Promise<AxiosResponse<T, any>> {
+    const url = this.path + "/create"
+    try {
+      return await this.axios.post<T>(url, data);
+    } catch (error) {
+      return this.genericErrorHandler(error);
+    }
   }
 
   /**

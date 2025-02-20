@@ -1,8 +1,8 @@
 import axios, {type AxiosInstance} from "axios";
 
 const axiosSingleton = axios.create({
-    baseURL: "http://localhost:5000/",
-    withCredentials: true
+    baseURL: import.meta.env.VITE_API_BASE_URL,
+    withCredentials: false
 })
 
 abstract class AxiosService {
