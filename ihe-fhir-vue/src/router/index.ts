@@ -1,12 +1,19 @@
 import {createRouter, createWebHistory} from "vue-router"
-import PatientSearch from "@/components/PatientSearch.vue"
+import PatientCreate from "@/components/PatientCreate.vue"
 import NotFound from "@/views/NotFound.vue"
+import PatientList from "@/components/PatientList.vue"
 
 const routes = [
     {
         path:"/",
-        name:"PatientSearch",
-        component:PatientSearch,
+        name:"PatientCreate",
+        component:PatientCreate,
+    },
+
+    {
+        path:"/patients",
+        name:"PatientList",
+        component:PatientList,
     },
 
     {
@@ -14,10 +21,12 @@ const routes = [
         name:"NotFound",
         component:NotFound,
     },
+
+
 ]
 
 const router = createRouter({
-    history: createWebHistory(import.meta.env.VITE_APP_URL), 
+    history: createWebHistory('/'), 
     routes, 
 })
 
