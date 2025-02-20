@@ -68,8 +68,8 @@ const closeSuccessDialog = () => {
                     <v-select v-model="patientStore.patient.gender" label="Gender" :items="items"
                         :rules="[v => !!v || 'Patient Gender is required']" required />
                     <v-container class="mt-6">
-                        <v-row no-gutters justify="center">
-                            <v-col cols="12" md="1">
+                        <v-row no-gutters justify="start">
+                            <v-col cols="12" md="2">
                                 <v-btn :loading="isSubmitting" type="submit" color="success" rounded="xl" class="mb-3">
                                     Create
                                 </v-btn>

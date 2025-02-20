@@ -14,9 +14,9 @@ abstract class AxiosService {
     }
     
     protected genericErrorHandler(error:any) {
-        if(error.response.status === 400) {
+        if(error.response?.status === 400) {
             console.log("400: bad request from client")
-        } else if(error.response.status === 500) {
+        } else if(error.response?.status === 500) {
             console.log("500: Internal server error")
         }
 
