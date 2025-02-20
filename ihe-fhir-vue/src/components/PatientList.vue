@@ -10,12 +10,12 @@ const patientStore = usePatientStore()
 const patients = ref<Patient[]>([])
 const errorMessage = ref('')
 
-const columns = [
-    { text: "Last Name", align: "left", value: "familyName" },
-    { text: "First Name", align: "left", value: "givenName" },
-    { text: "Gender", align: "left", value: "gender" },
-    { text: "Birth Date", align: "left", value: "birthDate" },
-    { text: "Actions", align: "left", value: "actions" },
+const headers = [
+    { title: "Last Name", align: "left", key: "familyName" },
+    { title: "First Name", align: "left", key: "givenName" },
+    { title: "Gender", align: "left", key: "gender" },
+    { title: "Birth Date", align: "left", key: "birthDate" },
+    { title: "Actions", align: "left", key: "actions" },
 ];
 
 onMounted(async () => {
@@ -44,7 +44,7 @@ const editPatient = (patient: any) => {
 </script>
 
 <template>
-    <v-data-table :columns="columns" :items="patients">
+    <v-data-table :headers="headers" :items="patients">
         <template v-slot:[`item.familyName`]="{ item }">
             <td class="text-left">{{ item.familyName }}</td> <!-- Left align for name -->
         </template>
