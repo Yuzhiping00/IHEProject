@@ -24,10 +24,13 @@ export abstract class ApiService<T> extends AxiosService {
    * @param resource The resource path.
    * @param id The id of the resource.
    */
-  delete(id: any): Promise<AxiosResponse<T, any>> {
-    return this.axios
-      .delete<T>(`${this.path}/${id}`)
-      .catch(this.genericErrorHandler);
+  async delete(id: any): Promise<AxiosResponse<T, any>> {
+    try {
+      return await this.axios
+        .delete<T>(`${this.path}/delete/${id}`);
+    } catch (error) {
+      return this.genericErrorHandler(error);
+    }
   }
 
   /**
@@ -80,9 +83,12 @@ export abstract class ApiService<T> extends AxiosService {
    * @param path The resource path.
    * @param query The resource query.
    */
-  query(query?: any): Promise<AxiosResponse<T[], any>> {
-    return this.axios
-      .get<T[]>(this.path, { params: query })
-      .catch(this.genericErrorHandler);
+  async query(query?: any): Promise<AxiosResponse<T[], any>> {
+    try {
+      return await this.axios
+        .get<T[]>(this.path, { params: query });
+    } catch (error) {
+      return this.genericErrorHandler(error);
+    }
   }
 }
