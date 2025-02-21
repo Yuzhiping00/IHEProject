@@ -78,6 +78,10 @@ const editPatient = (patient: any) => {
     console.log("editing a patient: ", patient)
 }
 
+const createPatient = () => {
+    router.push({name:"PatientCreate"})
+}
+
 </script>
 
 <template>
@@ -135,9 +139,13 @@ const editPatient = (patient: any) => {
         </v-dialog>
     </v-container>
     <v-container v-else>
-        <v-alert border="top" type="warning" variant="outlined" prominent color="red" rounded>
+        <v-alert border="top" type="warning" variant="outlined" prominent>
             No patients found. Please add a new patient to get started.
         </v-alert>
+        <br/>
+        <v-btn @click="createPatient" color="purple" rounded="xl" variant="elevated">
+            Create Patient
+        </v-btn>
     </v-container>
 </template>
 
