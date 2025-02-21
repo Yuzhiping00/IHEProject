@@ -4,47 +4,21 @@ import { useRouter } from "vue-router"
 import patientService from "@/services/resources/patientService.js"
 import { usePatientStore } from '@/stores/patientStore'
 import Patient from '@/models/Patient'
+import PatientCreate from '@/components/PatientCreate.vue'
 
 const router = useRouter()
 const displayedPatients = ref([])
 const retrievedPatients = ref<Patient[]>([])
-const errorMessage = ref('')
 const filteredPatients = ref<Patient[]>([])
-const hasPatients = ref(false)
 const isLoading = ref(true)
+const updatePatientForm = ref()
+const editPatient = ref()
 
 // selected patient to for deletion or viewing
 const selectedPatient = ref<Patient | null>(null)
 const deleteDialog = ref(false)
+const editDialog = ref(false)
 
-// show the delete confirmation modal
-const confirmDelete = (patient: Patient) => {
-    selectedPatient.value = patient
-    deleteDialog.value = true
-}
-
-// handle delete action
-const deletePatient = async () => {
-
-    isLoading.value = true
-    // remove the selected patient from db
-    const response = await patientService.delete(selectedPatient.value?.id)
-    if (response.status === 200) {
-        isLoading.value = false
-        filteredPatients.value = displayedPatients.value.filter((p: any) =>
-            p.id != selectedPatient?.value?.id
-        )
-        displayedPatients.value = filteredPatients.value
-        deleteDialog.value = false
-        selectedPatient.value = null
-        if (!displayedPatients.value) {
-            hasPatients.value = false
-        }
-    } else {
-        isLoading.value = false
-        router.push({ name: 'NotFound' })
-    }
-}
 
 const headers = [
     { title: "Last Name", align: "left", key: "familyName" },
@@ -58,7 +32,6 @@ onMounted(async () => {
     const response = await patientService.query()
     if (response.status === 200) {
         isLoading.value = false
-        hasPatients.value = true
         retrievedPatients.value = response.data
         displayedPatients.value = retrievedPatients.value.map(({ id, familyName, givenName, gender, birthDate }) => ({
             id,
@@ -70,12 +43,88 @@ onMounted(async () => {
         }))
     } else {
         isLoading.value = false
-        hasPatients.value = false
     }
 })
 
-const editPatient = (patient: any) => {
-    console.log("editing a patient: ", patient)
+// show the delete confirmation modal
+const clickedDelete = (patient: Patient) => {
+    selectedPatient.value = patient
+    deleteDialog.value = true
+}
+
+// handle delete action
+const confirmDeletePatient = async () => {
+    isLoading.value = true
+    // remove the selected patient from db
+    const response = await patientService.delete(selectedPatient.value?.id)
+    if (response.status === 200) {
+        isLoading.value = false
+        filteredPatients.value = displayedPatients.value.filter((p: any) =>
+            p.id != selectedPatient?.value?.id
+        )
+        displayedPatients.value = filteredPatients.value
+        deleteDialog.value = false
+        selectedPatient.value = null
+    } else {
+        isLoading.value = false
+        router.push({ name: 'NotFound' })
+    }
+}
+
+const clickedEdit = (patient: any) => {
+    editDialog.value = true
+    editPatient.value = patient
+}
+
+const firstNameRules = [
+    (value: any) => value ? true : 'You must enter a patinet first name',
+    (value: any) => value?.length <= 20 ? true : "First name must be less than 20 characters",
+    (value: any) => (/[^0-9]/.test(value)) ? true : "First name can not contain all digits"
+]
+
+const lastNameRules = [
+    (value: any) => value ? true : 'You must enter a user last name',
+    (value: any) => value?.length <= 20 ? true : "Last name must be less than 20 characters",
+    (value: any) => (/[^0-9]/.test(value)) ? true : "Last name can not contain all digits"
+]
+
+const items = ref(['Male', 'Female', 'Unknown', 'Other'])
+
+const updateForm = async () => {
+    const { valid } = await updatePatientForm.value.validate()
+    if (!valid) return
+
+    let mappedPatient = retrievedPatients.value.find(p => p.id === editPatient.value?.id)
+
+    if(mappedPatient && editPatient.value) {
+        Object.assign(mappedPatient, {
+            birthDate : editPatient.value.birthDate,
+            familyName: editPatient.value.familyName,
+            givenName : editPatient.value.givenName,
+            id : editPatient.value.id,
+            gender : editPatient.value.gender
+        })
+    }
+    
+    console.log("This is editted patient: ", mappedPatient)
+
+    isLoading.value = true
+    const response = await patientService.put(editPatient.value?.id, mappedPatient)
+    if (response.status === 200) {
+        isLoading.value = false
+        displayedPatients.value[displayedPatients.value.findIndex(p => p.id === editPatient.value?.id)]
+            = editPatient.value
+        console.log("displayed patietns: ", displayedPatients.value)
+        selectedPatient.value = null
+        editDialog.value = false
+    } else {
+        isLoading.value = false
+        router.push({ name: 'NotFound' })
+    }
+}
+
+const cancelUpdateForm = () => {
+    editDialog.value = false
 }
 
 const createPatient = () => {
@@ -106,10 +155,10 @@ const createPatient = () => {
             </template>
             <template v-slot:[`item.actions`]="{ item }">
                 <td class="text-left">
-                    <v-btn color="primary" @click="editPatient(item)">
+                    <v-btn color="primary" @click="clickedEdit(item)">
                         <v-icon>mdi-pencil</v-icon>
                     </v-btn>
-                    <v-btn color="red" class="ma-2" @click="confirmDelete(item)">
+                    <v-btn color="red" class="ma-2" @click="clickedDelete(item)">
                         <v-icon>mdi-delete</v-icon>
                     </v-btn>
                 </td>
@@ -125,18 +174,52 @@ const createPatient = () => {
                 <v-card-text>
                     Are you sure you want to delete <strong>{{ `${selectedPatient?.familyName}
                         ${selectedPatient?.givenName}`
-                    }}</strong>
+                        }}</strong>
                 </v-card-text>
                 <v-card-actions>
                     <v-btn color="grey" @click="deleteDialog = false">
                         Cancel
                     </v-btn>
-                    <v-btn color="red" @click="deletePatient">
+                    <v-btn color="red" @click="confirmDeletePatient">
                         Confirm
                     </v-btn>
                 </v-card-actions>
             </v-card>
         </v-dialog>
+
+        <!-- Edit Specific Patient Modal -->
+        <v-dialog v-model="editDialog" width="45%">
+            <v-card>
+                <v-card-title class="my-6 text-uppercase">
+                    Update Patient
+                </v-card-title>
+                <v-card-text>
+                    <v-form @submit.prevent="updateForm" ref="updatePatientForm">
+                        <v-text-field label="Last Name" :counter="20" v-model="editPatient.familyName"
+                            :rules="firstNameRules" required />
+                        <v-text-field label="First Name" :counter="20" v-model="editPatient.givenName"
+                            :rules="lastNameRules" required />
+                        <v-select label="Gender" :items="items" v-model="editPatient.gender"
+                            :rules="[v => !!v || 'Patient Gender is required']" required />
+                        <v-container class="mt-6">
+                            <v-row no-gutters justify="start">
+                                <v-col cols="12" md="3">
+                                    <v-btn type="submit" color="success" rounded="xl" class="mb-3">
+                                        Update
+                                    </v-btn>
+                                </v-col>
+                                <v-col cols="12" md="4">
+                                    <v-btn color="error" rounded="xl" class="mb-3" @click="cancelUpdateForm">
+                                        Cancel
+                                    </v-btn>
+                                </v-col>
+                            </v-row>
+                        </v-container>
+                    </v-form>
+                </v-card-text>
+            </v-card>
+        </v-dialog>
+
     </v-container>
     <v-container v-else>
         <v-card>

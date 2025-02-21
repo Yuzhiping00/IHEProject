@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FHIR_IHE_API.Controllers
 {
-    [Route("api/patient")]
+    [Route("api/[controller]")]
     [ApiController]
     public class PatientController : ControllerBase
     {
@@ -66,31 +66,32 @@ namespace FHIR_IHE_API.Controllers
         }
 
         // PUT: api/patient/update
-        [HttpPut("update")]
-        public async Task<IActionResult> PutPatient(int id, Patient patient)
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutPatient(int id, [FromBody] Patient updatedPatient)
         {
-            if (id != patient.Id)
-            { 
+            if (id != updatedPatient.Id)
+            {
                 return BadRequest();
             }
-
-            _context.Entry(patient).State = EntityState.Modified;
-
-            try
+            var existingPatient = await _context.Patients.FindAsync(id);
+            if (existingPatient == null)
             {
-                await _context.SaveChangesAsync();
+                return NotFound();
             }
-            catch (DbUpdateConcurrencyException)
+            var entry = _context.Entry(existingPatient);
+            // Iterate over properties and update only changed values
+            foreach (var property in entry.OriginalValues.Properties)
             {
-                if (!_context.Patients.Any(e => e.Id == id))
+                var original = entry.OriginalValues[property]?.ToString();
+                var current = updatedPatient.GetType().GetProperty(property.Name)?.GetValue(updatedPatient)?.ToString();
+                if (original != current) // Detect change
                 {
-                    return NotFound();
+                    entry.Property(property.Name).CurrentValue = current;
+                    entry.Property(property.Name).IsModified = true;
                 }
-
-                throw;
             }
-
-            return NoContent();
+            await _context.SaveChangesAsync();
+            return Ok();
         }
 
         //DELETE: api/patient/5
@@ -107,7 +108,7 @@ namespace FHIR_IHE_API.Controllers
             _context.Patients.Remove(patient);
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            return Ok("The patient has been deleted successfully.");
         }
 
     }
