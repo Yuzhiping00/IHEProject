@@ -37,7 +37,7 @@ const deletePatient = async () => {
         displayedPatients.value = filteredPatients.value
         deleteDialog.value = false
         selectedPatient.value = null
-        if(!displayedPatients.value){
+        if (!displayedPatients.value) {
             hasPatients.value = false
         }
     } else {
@@ -79,7 +79,7 @@ const editPatient = (patient: any) => {
 }
 
 const createPatient = () => {
-    router.push({name:"PatientCreate"})
+    router.push({ name: "PatientCreate" })
 }
 
 </script>
@@ -125,7 +125,7 @@ const createPatient = () => {
                 <v-card-text>
                     Are you sure you want to delete <strong>{{ `${selectedPatient?.familyName}
                         ${selectedPatient?.givenName}`
-                        }}</strong>
+                    }}</strong>
                 </v-card-text>
                 <v-card-actions>
                     <v-btn color="grey" @click="deleteDialog = false">
@@ -139,13 +139,18 @@ const createPatient = () => {
         </v-dialog>
     </v-container>
     <v-container v-else>
-        <v-alert border="top" type="warning" variant="outlined" prominent>
-            No patients found. Please create a new patient below to get started.
-        </v-alert>
-        <br/>
-        <v-btn @click="createPatient" color="success" rounded="xl" variant="elevated">
-            Create
-        </v-btn>
+        <v-card>
+            <v-alert border="top" type="warning" variant="outlined" prominent>
+                <p class="font-weight-bold">No patients found. Please create a new patient
+                    below
+                    to get started.</p>
+            </v-alert>
+            <br />
+            <v-btn @click="createPatient" color="success" rounded="xl" variant="elevated" class="mb-6">
+                Create
+            </v-btn>
+        </v-card>
+
     </v-container>
 </template>
 
