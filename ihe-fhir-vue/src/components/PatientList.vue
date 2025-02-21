@@ -140,11 +140,11 @@ const createPatient = () => {
     </v-container>
     <v-container v-else>
         <v-alert border="top" type="warning" variant="outlined" prominent>
-            No patients found. Please add a new patient to get started.
+            No patients found. Please create a new patient below to get started.
         </v-alert>
         <br/>
-        <v-btn @click="createPatient" color="purple" rounded="xl" variant="elevated">
-            Create Patient
+        <v-btn @click="createPatient" color="success" rounded="xl" variant="elevated">
+            Create
         </v-btn>
     </v-container>
 </template>
