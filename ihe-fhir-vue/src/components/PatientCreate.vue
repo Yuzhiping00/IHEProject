@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from "vue-router"
 import patientService from "@/services/resources/patientService.js"
 import { usePatientStore } from '@/stores/patientStore'
+import { VDateInput } from 'vuetify/lib/labs/components.mjs'
 
 const router = useRouter()
 const patientStore = usePatientStore()
@@ -12,7 +13,8 @@ const isSubmitting = ref(false)
 const showSuccessDialog = ref(false)
 const showErrorSnackbar = ref(false)
 const errorMessage = ref("")
-
+const maxDate = ref(new Date())
+const minDate = "1900-01-01"
 const firstNameRules = [
     (value: any) => value ? true : 'You must enter a patinet first name',
     (value: any) => value?.length <= 20 ? true : "First name must be less than 20 characters",
@@ -68,6 +70,8 @@ const closeSuccessDialog = () => {
                         :rules="lastNameRules" required />
                     <v-select v-model="patientStore.patient.gender" label="Gender" :items="items"
                         :rules="[v => !!v || 'Patient Gender is required']" required />
+                    <v-date-input  v-model="patientStore.patient.birthDate" clearable label="Birth of Date" :rules="[v => !!v || 'Patient Birth of Date is required']"
+                        prepend-icon="" append-inner-icon="$calendar" :max="maxDate" :min="minDate"></v-date-input>
                     <v-container class="mt-6">
                         <v-row no-gutters justify="start">
                             <v-col cols="12" md="3">

@@ -4,7 +4,7 @@
   </v-app>
 </template>
 
-<script lang="ts">
+<script lang="ts" setup>
 import { useRoute } from 'vue-router';
 </script>
 
