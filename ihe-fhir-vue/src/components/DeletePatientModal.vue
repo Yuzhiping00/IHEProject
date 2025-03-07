@@ -28,7 +28,7 @@ const patientName = computed(() => {
                 <div class="text-h5 ps-2">
                   Confirm Patient Deletion
                 </div>
-                <v-btn icon="mdi-close" variant="text" @click="$emit('closeModal')"></v-btn>
+                <v-btn icon="mdi-close" variant="text" @click="$emit('cancelDelete')"></v-btn>
             </v-card-title>
             <v-card-text>
                 Are you sure you want to delete <strong>{{ patientName }}</strong>

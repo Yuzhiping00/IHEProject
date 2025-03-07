@@ -2,16 +2,16 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from "vue-router"
 import patientService from "@/services/resources/patientService.js"
-import { usePatientStore } from '@/stores/patientStore'
 import Patient from '@/models/Patient'
-import PatientCreate from '@/components/PatientCreate.vue'
+import DeletePatientModal from './DeletePatientModal.vue'
+import EditPatientModal from './EditPatientModal.vue'
+
 
 const router = useRouter()
 const displayedPatients = ref([])
 const retrievedPatients = ref<Patient[]>([])
 const filteredPatients = ref<Patient[]>([])
 const isLoading = ref(true)
-const updatePatientForm = ref()
 const editPatient = ref()
 
 // selected patient to for deletion or viewing
@@ -29,7 +29,9 @@ const headers = [
 ];
 
 onMounted(async () => {
+    isLoading.value = true
     const response = await patientService.query()
+    isLoading.value = false
     if (response.status === 200) {
         isLoading.value = false
         retrievedPatients.value = response.data
@@ -76,49 +78,28 @@ const clickedEdit = (patient: any) => {
     editPatient.value = patient
 }
 
-const firstNameRules = [
-    (value: any) => value ? true : 'You must enter a patinet first name',
-    (value: any) => value?.length <= 20 ? true : "First name must be less than 20 characters",
-    (value: any) => (/[^0-9]/.test(value)) ? true : "First name can not contain all digits"
-]
-
-const lastNameRules = [
-    (value: any) => value ? true : 'You must enter a user last name',
-    (value: any) => value?.length <= 20 ? true : "Last name must be less than 20 characters",
-    (value: any) => (/[^0-9]/.test(value)) ? true : "Last name can not contain all digits"
-]
-
-const items = ref(['Male', 'Female', 'Unknown', 'Other'])
-
-const updateForm = async () => {
-    const { valid } = await updatePatientForm.value.validate()
-    if (!valid) return
-
-    let mappedPatient = retrievedPatients.value.find(p => p.id === editPatient.value?.id)
-
-    if(mappedPatient && editPatient.value) {
+const handleUpdate = async (updatedPatient : any) => {
+    let mappedPatient = retrievedPatients.value.find(p => p.id === updatedPatient.id)
+   
+    if (mappedPatient && updatedPatient) {
         Object.assign(mappedPatient, {
-            birthDate : editPatient.value.birthDate,
-            familyName: editPatient.value.familyName,
-            givenName : editPatient.value.givenName,
-            id : editPatient.value.id,
-            gender : editPatient.value.gender
+            birthDate: updatedPatient.birthDate,
+            familyName: updatedPatient.familyName,
+            givenName: updatedPatient.givenName,
+            id: updatedPatient.id,
+            gender: updatedPatient.gender,
         })
     }
-    
-    console.log("This is editted patient: ", mappedPatient)
 
     isLoading.value = true
-    const response = await patientService.put(editPatient.value?.id, mappedPatient)
+    const response = await patientService.put(updatedPatient.id, mappedPatient)
+    isLoading.value = false
+
     if (response.status === 200) {
-        isLoading.value = false
-        displayedPatients.value[displayedPatients.value.findIndex(p => p.id === editPatient.value?.id)]
-            = editPatient.value
-        console.log("displayed patietns: ", displayedPatients.value)
+        displayedPatients.value[displayedPatients.value.findIndex(p => p.id === updatedPatient.id)] = updatedPatient
         selectedPatient.value = null
         editDialog.value = false
     } else {
-        isLoading.value = false
         router.push({ name: 'NotFound' })
     }
 }
@@ -139,7 +120,7 @@ const createPatient = () => {
         </v-progress-circular>
     </v-overlay>
 
-    <v-container v-if="displayedPatients.length > 0">
+    <v-container v-if="displayedPatients && displayedPatients.length > 0">
         <v-data-table :headers="headers" :items="displayedPatients">
             <template v-slot:[`item.familyName`]="{ item }">
                 <td class="text-left">{{ item.familyName }}</td> <!-- Left align for name -->
@@ -151,7 +132,8 @@ const createPatient = () => {
                 <td class="text-left">{{ item.gender }}</td> <!-- Right align for gender -->
             </template>
             <template v-slot:[`item.birthDate`]="{ item }">
-                <td class="text-left">{{ item.birthDate }}</td> <!-- Right align for gender -->
+                <td class="text-left">{{ item.birthDate }}</td>
+                <!-- Right align for gender -->
             </template>
             <template v-slot:[`item.actions`]="{ item }">
                 <td class="text-left">
@@ -166,61 +148,16 @@ const createPatient = () => {
         </v-data-table>
 
         <!-- Delete  Confirmation Modal -->
-        <v-dialog v-model="deleteDialog" max-width="45%" height="20%">
-            <v-card>
-                <v-card-title>
-                    Confirm Patient Deletion
-                </v-card-title>
-                <v-card-text>
-                    Are you sure you want to delete <strong>{{ `${selectedPatient?.familyName}
-                        ${selectedPatient?.givenName}`
-                        }}</strong>
-                </v-card-text>
-                <v-card-actions>
-                    <v-btn color="grey" @click="deleteDialog = false">
-                        Cancel
-                    </v-btn>
-                    <v-btn color="red" @click="confirmDeletePatient">
-                        Confirm
-                    </v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
+        <delete-patient-modal v-if="deleteDialog" :show-modal="deleteDialog" @cancelDelete="deleteDialog = false"
+        @confirmDelete="confirmDeletePatient" :selectedFamilyName="selectedPatient?.familyName" 
+        :selectedGivenName="selectedPatient?.givenName"/>
 
-        <!-- Edit Specific Patient Modal -->
-        <v-dialog v-model="editDialog" width="45%">
-            <v-card>
-                <v-card-title class="my-6 text-uppercase">
-                    Update Patient
-                </v-card-title>
-                <v-card-text>
-                    <v-form @submit.prevent="updateForm" ref="updatePatientForm">
-                        <v-text-field label="Last Name" :counter="20" v-model="editPatient.familyName"
-                            :rules="firstNameRules" required />
-                        <v-text-field label="First Name" :counter="20" v-model="editPatient.givenName"
-                            :rules="lastNameRules" required />
-                        <v-select label="Gender" :items="items" v-model="editPatient.gender"
-                            :rules="[v => !!v || 'Patient Gender is required']" required />
-                        <v-container class="mt-6">
-                            <v-row no-gutters justify="start">
-                                <v-col cols="12" md="3">
-                                    <v-btn type="submit" color="success" rounded="xl" class="mb-3">
-                                        Update
-                                    </v-btn>
-                                </v-col>
-                                <v-col cols="12" md="4">
-                                    <v-btn color="error" rounded="xl" class="mb-3" @click="cancelUpdateForm">
-                                        Cancel
-                                    </v-btn>
-                                </v-col>
-                            </v-row>
-                        </v-container>
-                    </v-form>
-                </v-card-text>
-            </v-card>
-        </v-dialog>
+        <!-- Edit Patient Modal -->
+        <edit-patient-modal v-if="editDialog" :show-modal="editDialog" :patient="editPatient" @cancel-update="cancelUpdateForm"
+         @update-patient = "handleUpdate"/>
 
     </v-container>
+
     <v-container v-else>
         <v-card>
             <v-alert border="top" type="warning" variant="outlined" prominent>
