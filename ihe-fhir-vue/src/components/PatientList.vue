@@ -77,7 +77,8 @@ const confirmDeletePatient = async () => {
 const clickedEdit = (patient: any) => {
     editDialog.value = true
     editPatient.value = patient
-    editPatient.value.birthDate = patient.birthDate?.split("T")[0]
+    editPatient.value.birthDate = new Date(patient.birthDate)
+    console.log("patient to be edited: ", editPatient.value.birthDate)
 }
 
 const handleUpdate = async (updatedPatient : any) => {
@@ -85,7 +86,7 @@ const handleUpdate = async (updatedPatient : any) => {
    
     if (mappedPatient && updatedPatient) {
         Object.assign(mappedPatient, {
-            birthDate: updatedPatient.birthDate ? new Date(updatedPatient.birthDate) : undefined,
+            birthDate: updatedPatient.birthDate,
             familyName: updatedPatient.familyName,
             givenName: updatedPatient.givenName,
             id: updatedPatient.id,
@@ -134,7 +135,7 @@ const createPatient = () => {
                 <td class="text-left">{{ item.gender }}</td> <!-- Right align for gender -->
             </template>
             <template v-slot:[`item.birthDate`]="{ item }">
-                <td class="text-left">{{ item.birthDate?.split("T")[0] }}</td>
+                <td class="text-left">{{ new Date(item.birthDate).toISOString().split("T")[0]}}</td>
                 <!-- Right align for gender -->
             </template>
             <template v-slot:[`item.actions`]="{ item }">
