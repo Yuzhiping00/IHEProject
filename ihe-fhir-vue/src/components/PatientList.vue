@@ -18,14 +18,15 @@ const editPatient = ref()
 const selectedPatient = ref<Patient | null>(null)
 const deleteDialog = ref(false)
 const editDialog = ref(false)
+const search = ref('')
 
 
 const headers = [
-    { title: "Last Name", align: "left", key: "familyName" },
-    { title: "First Name", align: "left", key: "givenName" },
-    { title: "Gender", align: "left", key: "gender" },
-    { title: "Birth Date", align: "left", key: "birthDate" },
-    { title: "Actions", align: "left", key: "actions" },
+    { title: "Last Name", align: "start", key: "familyName" },
+    { title: "First Name", align: "start", key: "givenName" },
+    { title: "Gender", align: "start", key: "gender" },
+    { title: "Birth Date", align: "start", key: "birthDate" },
+    { title: "Actions", align: "start", key: "actions" },
 ];
 
 onMounted(async () => {
@@ -81,9 +82,9 @@ const clickedEdit = (patient: any) => {
     console.log("patient to be edited: ", editPatient.value.birthDate)
 }
 
-const handleUpdate = async (updatedPatient : any) => {
+const handleUpdate = async (updatedPatient: any) => {
     let mappedPatient = retrievedPatients.value.find(p => p.id === updatedPatient.id)
-   
+
     if (mappedPatient && updatedPatient) {
         Object.assign(mappedPatient, {
             birthDate: updatedPatient.birthDate,
@@ -124,40 +125,47 @@ const createPatient = () => {
     </v-overlay>
 
     <v-container v-if="displayedPatients && displayedPatients.length > 0">
-        <v-data-table :headers="headers" :items="displayedPatients">
-            <template v-slot:[`item.familyName`]="{ item }">
-                <td class="text-left">{{ item.familyName }}</td> <!-- Left align for name -->
+        <v-card title="Patients" flat class="text-left">
+            <!-- search patients -->
+            <template v-slot:text>
+                <v-text-field v-model="search" label="Search" prepend-inner-icon="mdi-magnify" class="mt-5"
+                variant="outlined" hide-details single-line></v-text-field>
             </template>
-            <template v-slot:[`item.givenName`]="{ item }">
-                <td class="text-left">{{ item.givenName }}</td> <!-- Center align for age -->
-            </template>
-            <template v-slot:[`item.gender`]="{ item }">
-                <td class="text-left">{{ item.gender }}</td> <!-- Right align for gender -->
-            </template>
-            <template v-slot:[`item.birthDate`]="{ item }">
-                <td class="text-left">{{ new Date(item.birthDate).toISOString().split("T")[0]}}</td>
-                <!-- Right align for gender -->
-            </template>
-            <template v-slot:[`item.actions`]="{ item }">
-                <td class="text-left">
-                    <v-btn color="primary" @click="clickedEdit(item)">
-                        <v-icon>mdi-pencil</v-icon>
-                    </v-btn>
-                    <v-btn color="red" class="ma-2" @click="clickedDelete(item)">
-                        <v-icon>mdi-delete</v-icon>
-                    </v-btn>
-                </td>
-            </template>
-        </v-data-table>
+            <v-data-table :headers="headers" :items="displayedPatients" :search="search">
+                <template v-slot:[`item.familyName`]="{ item }">
+                    <td class="text-left">{{ item.familyName }}</td> <!-- Left align for name -->
+                </template>
+                <template v-slot:[`item.givenName`]="{ item }">
+                    <td class="text-left">{{ item.givenName }}</td> <!-- Center align for age -->
+                </template>
+                <template v-slot:[`item.gender`]="{ item }">
+                    <td class="text-left">{{ item.gender }}</td> <!-- Right align for gender -->
+                </template>
+                <template v-slot:[`item.birthDate`]="{ item }">
+                    <td class="text-left">{{ new Date(item.birthDate).toISOString().split("T")[0] }}</td>
+                    <!-- Right align for gender -->
+                </template>
+                <template v-slot:[`item.actions`]="{ item }">
+                    <td class="text-left">
+                        <v-btn color="primary" @click="clickedEdit(item)">
+                            <v-icon>mdi-pencil</v-icon>
+                        </v-btn>
+                        <v-btn color="red" class="ma-2" @click="clickedDelete(item)">
+                            <v-icon>mdi-delete</v-icon>
+                        </v-btn>
+                    </td>
+                </template>
+            </v-data-table>
+        </v-card>
 
         <!-- Delete  Confirmation Modal -->
         <delete-patient-modal v-if="deleteDialog" :show-modal="deleteDialog" @cancelDelete="deleteDialog = false"
-        @confirmDelete="confirmDeletePatient" :selectedFamilyName="selectedPatient?.familyName" 
-        :selectedGivenName="selectedPatient?.givenName"/>
+            @confirmDelete="confirmDeletePatient" :selectedFamilyName="selectedPatient?.familyName"
+            :selectedGivenName="selectedPatient?.givenName" />
 
         <!-- Edit Patient Modal -->
-        <edit-patient-modal v-if="editDialog" :show-modal="editDialog" :patient="editPatient" @cancel-update="cancelUpdateForm"
-         @update-patient = "handleUpdate"/>
+        <edit-patient-modal v-if="editDialog" :show-modal="editDialog" :patient="editPatient"
+            @cancel-update="cancelUpdateForm" @update-patient="handleUpdate" />
 
     </v-container>
 
