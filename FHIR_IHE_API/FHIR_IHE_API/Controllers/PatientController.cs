@@ -78,18 +78,28 @@ namespace FHIR_IHE_API.Controllers
             {
                 return NotFound();
             }
-            var entry = _context.Entry(existingPatient);
-            // Iterate over properties and update only changed values
-            foreach (var property in entry.OriginalValues.Properties)
+
+            if (updatedPatient.Gender != existingPatient.Gender)
             {
-                var original = entry.OriginalValues[property]?.ToString();
-                var current = updatedPatient.GetType().GetProperty(property.Name)?.GetValue(updatedPatient)?.ToString();
-                if (original != current) // Detect change
-                {
-                    entry.Property(property.Name).CurrentValue = current;
-                    entry.Property(property.Name).IsModified = true;
-                }
+                existingPatient.Gender = updatedPatient.Gender;
             }
+
+            if (updatedPatient.BirthDate != existingPatient.BirthDate)
+            {
+                existingPatient.BirthDate = updatedPatient.BirthDate;
+            }
+
+            if (updatedPatient.GivenName != existingPatient.GivenName)
+            {
+                updatedPatient.GivenName = updatedPatient.GivenName;
+            }
+
+            if (updatedPatient.FamilyName != existingPatient.FamilyName)
+            {
+                updatedPatient.FamilyName = updatedPatient.FamilyName;
+            }
+
+
             await _context.SaveChangesAsync();
             return Ok();
         }

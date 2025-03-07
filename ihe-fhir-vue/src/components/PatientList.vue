@@ -8,7 +8,7 @@ import EditPatientModal from './EditPatientModal.vue'
 
 
 const router = useRouter()
-const displayedPatients = ref([])
+const displayedPatients = ref<any[]>()
 const retrievedPatients = ref<Patient[]>([])
 const filteredPatients = ref<Patient[]>([])
 const isLoading = ref(true)
@@ -43,6 +43,7 @@ onMounted(async () => {
             birthDate,
             actions: ''
         }))
+
     } else {
         isLoading.value = false
     }
@@ -76,6 +77,7 @@ const confirmDeletePatient = async () => {
 const clickedEdit = (patient: any) => {
     editDialog.value = true
     editPatient.value = patient
+    editPatient.value.birthDate = patient.birthDate?.split("T")[0]
 }
 
 const handleUpdate = async (updatedPatient : any) => {
@@ -83,7 +85,7 @@ const handleUpdate = async (updatedPatient : any) => {
    
     if (mappedPatient && updatedPatient) {
         Object.assign(mappedPatient, {
-            birthDate: updatedPatient.birthDate,
+            birthDate: updatedPatient.birthDate ? new Date(updatedPatient.birthDate) : undefined,
             familyName: updatedPatient.familyName,
             givenName: updatedPatient.givenName,
             id: updatedPatient.id,
@@ -132,7 +134,7 @@ const createPatient = () => {
                 <td class="text-left">{{ item.gender }}</td> <!-- Right align for gender -->
             </template>
             <template v-slot:[`item.birthDate`]="{ item }">
-                <td class="text-left">{{ item.birthDate }}</td>
+                <td class="text-left">{{ item.birthDate?.split("T")[0] }}</td>
                 <!-- Right align for gender -->
             </template>
             <template v-slot:[`item.actions`]="{ item }">

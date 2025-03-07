@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, defineProps, defineEmits, watch } from 'vue';
+import { ref, nextTick, watch } from 'vue';
 import { VDateInput } from 'vuetify/lib/labs/components.mjs'
 
 const maxDate = ref(new Date())
@@ -34,9 +34,16 @@ watch(() => props.patient,
     }, { deep: true });
 
 const savePatient = async() => {
+    if(!form.value) {
+        await nextTick()
+    }
+
+    if(!form.value) {
+        console.error("Form reference is null")
+        return
+    }
     loading.value = true
     const { valid } = await form.value.validate()
-    console.log("form data = ", formData.value)
     loading.value = false
     if (!valid) return
     emit("update-patient", formData.value)  
