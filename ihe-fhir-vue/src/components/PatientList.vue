@@ -129,7 +129,7 @@ const createPatient = () => {
             <!-- search patients -->
             <template v-slot:text>
                 <v-text-field v-model="search" label="Search" prepend-inner-icon="mdi-magnify" class="mt-5"
-                variant="outlined" hide-details single-line></v-text-field>
+                    variant="outlined" hide-details single-line></v-text-field>
             </template>
             <v-data-table :headers="headers" :items="displayedPatients" :search="search">
                 <template v-slot:[`item.familyName`]="{ item }">
@@ -171,10 +171,8 @@ const createPatient = () => {
 
     <v-container v-else>
         <v-card>
-            <v-alert border="top" type="warning" variant="outlined" prominent>
-                <p class="font-weight-bold">No patients found. Please create a new patient
-                    below
-                    to get started.</p>
+            <v-alert type="warning" variant="outlined" prominent>
+                <p class="font-weight-bold">No patients found. Please create a new patient below to get started.</p>
             </v-alert>
             <br />
             <v-btn @click="createPatient" color="success" rounded="xl" variant="elevated" class="mb-6">

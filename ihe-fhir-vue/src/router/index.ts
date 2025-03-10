@@ -1,33 +1,38 @@
-import {createRouter, createWebHistory} from "vue-router"
-import PatientCreate from "@/components/PatientCreate.vue"
-import NotFound from "@/views/NotFound.vue"
-import PatientList from "@/components/PatientList.vue"
+import { createRouter, createWebHistory } from "vue-router";
+import PatientCreate from "@/components/PatientCreate.vue";
+import NotFound from "@/views/NotFound.vue";
+import PatientList from "@/components/PatientList.vue";
+import Login from "@/components/Login.vue";
 
 const routes = [
-    {
-        path:"/",
-        name:"PatientCreate",
-        component:PatientCreate,
-    },
+  {
+    path: "/",
+    name: "Login",
+    component: Login,
+  },
+  
+  // {
+  //     path:"/",
+  //     name:"PatientCreate",
+  //     component:PatientCreate,
+  // },
 
-    {
-        path:"/patients",
-        name:"PatientList",
-        component:PatientList,
-    },
+  {
+    path: "/patients",
+    name: "PatientList",
+    component: PatientList,
+  },
 
-    {
-        path:"/notfound",
-        name:"NotFound",
-        component:NotFound,
-    },
-
-
-]
+  {
+    path: "/:pathMatch(.*)*",
+    name: "NotFound",
+    component: NotFound,
+  },
+];
 
 const router = createRouter({
-    history: createWebHistory('/'), 
-    routes, 
-})
+  history: createWebHistory("/"),
+  routes,
+});
 
-export default router
+export default router;

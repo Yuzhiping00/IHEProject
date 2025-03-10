@@ -1,0 +1,30 @@
+import type { AxiosResponse } from "axios";
+import AxiosService from "@/services/core/axiosService";
+import ContentResult from "@/models/ContenResult";
+
+/**
+ * Represents an User service.
+ */
+class AccountService extends AxiosService {
+  /**
+   * Gets or set the path of the API for the service.
+   */
+  protected rootPath: string = "account";
+
+  /**
+   * Gets or set the path of the API for the service.
+   */
+  basePath: string = "account";
+
+
+  /**
+   * Logs a user in given they provide the correct email and password
+   */
+  loginAsync(data: object): Promise<AxiosResponse<any>> {
+    return this.axios
+      .post(`${this.rootPath}/login`, data)
+      .catch(this.genericErrorHandler);
+  }
+}
+
+export default new AccountService();
