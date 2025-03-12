@@ -3,6 +3,7 @@ using System.Reflection.Metadata;
 using FHIR_IHE_API.Data;
 using FHIR_IHE_API.Models;
 using Hl7.Fhir.Rest;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,6 +11,7 @@ namespace FHIR_IHE_API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class PatientController : ControllerBase
     {
         private readonly ApplicationDbContext _context;

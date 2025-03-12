@@ -1,8 +1,22 @@
 import axios, {type AxiosInstance} from "axios";
+import { useAuthStore } from "@/stores/authStore";
 
 const axiosSingleton = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL,
     withCredentials: false
+})
+
+axiosSingleton.interceptors.request.use(config => {
+    const authStore = useAuthStore()
+    console.log("token = ", authStore.token)
+
+    if(authStore.token) {
+        config.headers.Authorization = `Bearer ${authStore.token}`
+    }
+    return config
+    }, error => {
+
+    return Promise.reject(error)
 })
 
 abstract class AxiosService {

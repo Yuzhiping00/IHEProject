@@ -36,6 +36,8 @@ namespace FHIR_IHE_API
                 };
             });
 
+            builder.Services.AddAuthorization();
+
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
@@ -60,12 +62,11 @@ namespace FHIR_IHE_API
 
             app.UseCors("AllowVueApp");
 
-            app.UseHttpsRedirection();
+            //app.UseHttpsRedirection();
 
             app.UseAuthentication();
 
             app.UseAuthorization();
-
 
             app.MapControllers();
 
