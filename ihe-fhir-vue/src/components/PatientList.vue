@@ -119,11 +119,6 @@ const createPatient = () => {
 </script>
 
 <template>
-    <v-overlay :model-value="isLoading" class="align-center justify-center">
-        <v-progress-circular :rotate="360" :size="100" :width="10" color="purple" indeterminate>
-        </v-progress-circular>
-    </v-overlay>
-
     <v-container v-if="displayedPatients && displayedPatients.length > 0">
         <v-card title="Patients" flat class="text-left">
             <!-- search patients -->

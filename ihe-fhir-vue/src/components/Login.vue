@@ -1,17 +1,20 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch} from 'vue'
 import { useAuthStore } from '@/stores/authStore';
 import accountService from '@/services/core/accountService';
+import { useRouter } from "vue-router"
 
 const authStore = useAuthStore()
+const router = useRouter();
 const email = ref('')
 const password = ref('')
-const valid = ref(false)
-const visible = ref(true)
+const visible = ref(false)
+const errorMessage = ref('')
+const loginForm = ref()
 
 const emailRules = {
     required: (v: any) => !!v || 'Email is required',
-    email: (v: any) => /.+@.+/.test(v) || 'Invalid Email address' 
+    email: (v: any) => /.+@.+/.test(v) || 'Invalid Email address'
 }
 
 const passwordRules = {
@@ -20,21 +23,40 @@ const passwordRules = {
 }
 
 const login = async () => {
+    const { valid } = await loginForm.value.validate()
+    if (!valid) return
+
     const response = await accountService.loginAsync({ email: email.value, password: password.value })
     if (response.status === 200) {
         authStore.setToken(response.data.token)
         authStore.setUser(response.data.user)
+        errorMessage.value = ""
+        router.push({ name: "PatientList" })
     } else {
-        console.error("Login failed due to incorrect email or password!")
+        errorMessage.value = response.data
     }
 }
+
+watch(() => password.value, (newValue) =>{
+    if(newValue) {
+        errorMessage.value = ""
+    }
+})
+
+watch(() => email.value, (newValue) =>{
+    if(newValue) {
+        errorMessage.value = ""
+    }
+})
 
 </script>
 
 <template>
     <v-container fluid>
-        <v-img class="mx-auto my-6" max-width="228"
-            src="https://cdn.vuetifyjs.com/docs/images/logos/vuetify-logo-v3-slim-text-light.svg"></v-img>
+        <v-alert color="#C51162" type="error" border v-if="errorMessage != ''">
+            {{ errorMessage }}
+        </v-alert>
+        <br/>
         <v-row>
             <v-col cols="12" md="8" offset-md="2">
                 <v-card>
@@ -42,20 +64,19 @@ const login = async () => {
                         Login
                     </v-card-title>
                     <v-card-text>
-                        <v-form ref="form" v-model="valid">
-                            
+                        <v-form ref="loginForm">
+
                             <v-text-field v-model="email" label="Email" :rules="[emailRules.required, emailRules.email]"
-                                required append-inner-icon="mdi-email" placeholder="johndoe@gmail.com"
-                                type="email">
+                                required append-inner-icon="mdi-email" placeholder="johndoe@gmail.com" type="email">
                             </v-text-field>
-                            
-                            <v-text-field :append-inner-icon="visible ? 'mdi-eye' : 'mdi-eye-off'"
+
+                            <v-text-field :append-inner-icon="visible ? 'mdi-eye' : 'mdi-eye-off'" v-model="password"
                                 :rules="[passwordRules.required, passwordRules.min]"
                                 :type="visible ? 'text' : 'password'" class="input-group--focused"
                                 hint="At least 8 characters" label="Password" name="input-10-2"
                                 @click:append-inner="visible = !visible"></v-text-field>
-                                
-                            <v-btn :disabled="valid" color="success" @click="login" class="my-6">
+
+                            <v-btn color="success" @click="login" class="my-6">
                                 Login
                             </v-btn>
                         </v-form>

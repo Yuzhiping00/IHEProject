@@ -9,7 +9,7 @@ class AccountService extends AxiosService {
   /**
    * Gets or set the path of the API for the service.
    */
-  protected rootPath: string = "account";
+  protected rootPath: string = "api/account";
 
   /**
    * Gets or set the path of the API for the service.
@@ -22,7 +22,7 @@ class AccountService extends AxiosService {
    */
   loginAsync(data: object): Promise<AxiosResponse<any>> {
     return this.axios
-      .post(`${this.rootPath}/login`, data)
+      .post<any>(`${this.rootPath}/login`, data)
       .catch(this.genericErrorHandler);
   }
 }
