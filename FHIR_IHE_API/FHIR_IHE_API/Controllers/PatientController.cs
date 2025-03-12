@@ -91,12 +91,12 @@ namespace FHIR_IHE_API.Controllers
 
             if (updatedPatient.GivenName != existingPatient.GivenName)
             {
-                updatedPatient.GivenName = updatedPatient.GivenName;
+                existingPatient.GivenName = updatedPatient.GivenName;
             }
 
             if (updatedPatient.FamilyName != existingPatient.FamilyName)
             {
-                updatedPatient.FamilyName = updatedPatient.FamilyName;
+                existingPatient.FamilyName = updatedPatient.FamilyName;
             }
 
 
