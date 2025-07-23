@@ -4,12 +4,22 @@ import NotFound from "@/views/NotFound.vue";
 import PatientList from "@/components/PatientList.vue";
 import Login from "@/components/Login.vue";
 import { useAuthStore } from "@/stores/authStore";
+import ResetPassword from "@/components/ResetPassword.vue";
 
 const routes = [
   {
     path: "/",
     name: "Login",
     component: Login,
+  },
+
+  {
+    path: "/reset-password",
+    name: "ResetPassword",
+    component: ResetPassword,
+    meta: {
+      requireAuth: true
+    }
   },
   
   {
@@ -35,6 +45,7 @@ const routes = [
     name: "NotFound",
     component: NotFound,
   },
+
 ];
 
 const router = createRouter({

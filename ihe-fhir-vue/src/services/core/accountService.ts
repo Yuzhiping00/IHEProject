@@ -25,6 +25,15 @@ class AccountService extends AxiosService {
       .post<any>(`${this.rootPath}/login`, data)
       .catch(this.genericErrorHandler);
   }
+
+  async resetPasswordAsync(data:object): Promise<AxiosResponse<any>> {
+    try {
+      return await this.axios
+        .post<any>(`${this.rootPath}/reset-password`, data);
+    } catch (error) {
+      return this.genericErrorHandler(error);
+    }
+  }
 }
 
 export default new AccountService();
