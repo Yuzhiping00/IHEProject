@@ -22,5 +22,9 @@ namespace FHIR_IHE_API.Models
         [Required] public DateTime BirthDate { get; set; }
 
         string ResourceType => "Patient";
+
+        public int ProviderId { get; set; }
+
+        public Provider? Provider { get; set; }
     }
 }
