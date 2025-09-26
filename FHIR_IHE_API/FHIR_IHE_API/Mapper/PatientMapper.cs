@@ -24,15 +24,15 @@ namespace FHIR_IHE_API.Mapper
                 BirthDate = model.BirthDate,
             };
 
-            //if (model?.Name.Any() == true)
-            //{
+            if (model?.Name.Any() == true)
+            {
 
-            //    fhirPatient.Name = model.Name.Select(n => new HumanName
-            //    {
-            //        Family = n.Family,
-            //        Given = n.Given
-            //    }).ToList();
-            //}
+                fhirPatient.Name = model.Name.Select(n => new HumanName
+                {
+                    Family = n.Family,
+                    Given = n.Given
+                }).ToList();
+            }
 
             return fhirPatient;
         }
@@ -45,8 +45,8 @@ namespace FHIR_IHE_API.Mapper
             return new Patient
             {
                 FhirId = fhirPatient.Id,
-                //FamilyName = fhirPatient.Name?.FirstOrDefault()?.Family,
-                //GivenName = fhirPatient.Name?.FirstOrDefault()?.Given?.FirstOrDefault(),
+                FamilyName = fhirPatient.Name?.FirstOrDefault()?.Family,
+                GivenName = fhirPatient.Name?.FirstOrDefault()?.Given?.FirstOrDefault(),
                 Gender = fhirPatient.Gender?.ToString(),
                 BirthDate = fhirPatient.BirthDateElement?.ToDateTimeOffset()?.DateTime,
                 JsonData = _serializer.SerializeToString(fhirPatient)

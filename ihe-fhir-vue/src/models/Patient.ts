@@ -1,7 +1,3 @@
-export interface HumanName {
-    family?: string
-    given?: string[]
-}
 
 // export interface Meta {
 //     versionId?: string
@@ -29,7 +25,7 @@ export interface HumanName {
 
 export default class Patient {
     resourceType: string = "Patient"
-    // name?: HumanName[]
+    name: HumanName[] = [{family:" ", given:[""]}]
     gender?: "male" | "female" | "other" | "unknown"
     birthDate?: string
     id?: string;
@@ -39,6 +35,12 @@ export default class Patient {
     // telecom?:ContactPoint[]
     // identifier?: Identifier[]
 }
+
+export class HumanName {
+    family: string = ""
+    given: string[] = [""]
+}
+
 
 
 

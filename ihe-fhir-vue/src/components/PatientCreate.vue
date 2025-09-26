@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from "vue-router"
 import patientService from "@/services/resources/patientService.js"
 import { usePatientStore } from '@/stores/patientStore'
@@ -15,6 +15,17 @@ const showErrorSnackbar = ref(false)
 const errorMessage = ref("")
 const maxDate = ref(new Date())
 const minDate = "1900-01-01"
+
+const lastName = computed({
+    get: () => patientStore.patient.name[0].family,
+    set: (val:string) => patientStore.patient.name[0].family = val
+})
+
+const firstName = computed({
+    get: () => patientStore.patient.name[0].given[0],
+    set: (val:string) => patientStore.patient.name[0].given[0] = val
+})
+
 const firstNameRules = [
     (value: any) => value ? true : 'You must enter a patinet first name',
     (value: any) => value?.length <= 20 ? true : "First name must be less than 20 characters",
@@ -47,6 +58,8 @@ const submitForm = async () => {
 
     isSubmitting.value = true;
 
+    console.log("name:  ", patientStore.patient.name)
+
     const response = await patientService.post(patientStore.patient)
     if (response && response.status === 200) {
         showSuccessDialog.value = true
@@ -78,10 +91,10 @@ const closeSuccessDialog = () => {
             </v-card-title>
             <v-card-text>
                 <v-form @submit.prevent="submitForm" ref="patientForm">
-                    <!-- <v-text-field v-model="patientStore.patient.name[0].family"  label="Last Name" :counter="20"
+                    <v-text-field v-model="lastName" label="Last Name" :counter="20"
+                        :rules="lastNameRules" required />
+                    <v-text-field v-model="firstName" label="First Name" :counter="20"
                         :rules="firstNameRules" required />
-                    <v-text-field v-model="patientStore.patient.name[0].given[0]" label="First Name" :counter="20"
-                        :rules="lastNameRules" required /> -->
                     <v-select v-model="patientStore.patient.gender" label="Gender" :items="items"
                         :rules="[v => !!v || 'Patient Gender is required']" required />
 
