@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from "vue-router"
 import patientService from "@/services/resources/patientService.js"
 import { usePatientStore } from '@/stores/patientStore'
@@ -7,7 +7,7 @@ import { VDateInput } from 'vuetify/lib/labs/components.mjs'
 
 const router = useRouter()
 const patientStore = usePatientStore()
-const items = ref(['Male', 'Female', 'Unknown', 'Other'])
+const items = ref(['male', 'female', 'other', 'unknown'])
 const patientForm = ref()
 const isSubmitting = ref(false)
 const showSuccessDialog = ref(false)
@@ -28,6 +28,20 @@ const lastNameRules = [
 ]
 
 const submitForm = async () => {
+    console.log("birth date:  ", patientStore.patient.birthDate)
+
+    if(patientStore.patient.birthDate) {
+
+        // parse date string into a date object
+        const date = new Date(patientStore.patient.birthDate)
+
+        //convert to YYYY-MM-DD
+        patientStore.patient.birthDate = date.toISOString().split('T')[0]
+
+    }
+
+    console.log("converted birth date:  ", patientStore.patient.birthDate)
+
     const { valid } = await patientForm.value.validate()
     if (!valid) return
 
@@ -64,14 +78,16 @@ const closeSuccessDialog = () => {
             </v-card-title>
             <v-card-text>
                 <v-form @submit.prevent="submitForm" ref="patientForm">
-                    <v-text-field v-model="patientStore.patient.familyName" label="Last Name" :counter="20"
+                    <!-- <v-text-field v-model="patientStore.patient.name[0].family"  label="Last Name" :counter="20"
                         :rules="firstNameRules" required />
-                    <v-text-field v-model="patientStore.patient.givenName" label="First Name" :counter="20"
-                        :rules="lastNameRules" required />
+                    <v-text-field v-model="patientStore.patient.name[0].given[0]" label="First Name" :counter="20"
+                        :rules="lastNameRules" required /> -->
                     <v-select v-model="patientStore.patient.gender" label="Gender" :items="items"
                         :rules="[v => !!v || 'Patient Gender is required']" required />
+
                     <v-date-input  v-model="patientStore.patient.birthDate" clearable label="Birth of Date" :rules="[v => !!v || 'Patient Birth of Date is required']"
                         prepend-icon="" append-inner-icon="$calendar" :max="maxDate" :min="minDate"></v-date-input>
+
                     <v-container class="mt-6">
                         <v-row no-gutters justify="start">
                             <v-col cols="12" md="3">
