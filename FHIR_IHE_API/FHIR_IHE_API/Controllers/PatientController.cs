@@ -15,7 +15,6 @@ namespace FHIR_IHE_API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
     public class PatientController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -43,23 +42,6 @@ namespace FHIR_IHE_API.Controllers
 
             return patients;
         }
-
-        //POST: api/patient/create
-        //[HttpPost("create")]
-        //public async Task<ActionResult<Patient>> CreatePatient([FromBody]Patient patient)
-        //{
-        //   _context.Patients.Add(patient);
-        //   try
-        //   {
-        //       await _context.SaveChangesAsync();
-        //       return patient;
-        //   }
-        //   catch (Exception ex)
-        //   {
-        //       return BadRequest(ex.Message);
-        //   }
-
-        //}
 
 
         [HttpPost("create")]
@@ -89,18 +71,22 @@ namespace FHIR_IHE_API.Controllers
 
         }
 
-        //GET: api/patient/5
+        //GET: api/patient/10ea202e-5787-46b3-8ef0-377963babfad
         [HttpGet("{id}")]
-        public async Task<ActionResult<Patient>> GetPatient(int id)
-        {
-           var patient = await _context.Patients.FindAsync(id);
+        public async Task<ActionResult<Patient>> GetPatient(string id)
+        { 
+            var entity = await _context.Patients.FirstOrDefaultAsync(p => p.FhirId == id);
 
-           if (patient == null)
-           {
-               return NotFound();
-           }
+            if (entity == null)
+            {
+                return NotFound();
+            }
 
-           return patient;
+            //convert DB entity -> Fhir patient
+
+            var fhirPatient = PatientMapper.ToFhirFromEntity(entity);
+
+            return Ok(fhirPatient);
         }
 
         // PUT: api/patient/update

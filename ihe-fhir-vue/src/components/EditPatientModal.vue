@@ -17,13 +17,13 @@ const loading = ref(false)
 const formData = ref({ ...props.patient })
 
 const firstNameRules = [
-    (value: any) => value ? true : 'You must enter a patinet first name',
+    (value: any) => value ? true : 'You must enter a patient first name',
     (value: any) => value?.length <= 20 ? true : "First name must be less than 20 characters",
     (value: any) => (/[^0-9]/.test(value)) ? true : "First name can not contain all digits"
 ]
 
 const lastNameRules = [
-    (value: any) => value ? true : 'You must enter a user last name',
+    (value: any) => value ? true : 'You must enter a patient last name',
     (value: any) => value?.length <= 20 ? true : "Last name must be less than 20 characters",
     (value: any) => (/[^0-9]/.test(value)) ? true : "Last name can not contain all digits"
 ]

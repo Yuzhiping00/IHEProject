@@ -53,57 +53,33 @@ namespace FHIR_IHE_API.Mapper
             };
         }
 
+        public static FHIRPatient ToFhirFromEntity(Patient entity)
+        {
+            var patient = new FHIRPatient
+            {
+                Id = entity.FhirId,
 
+                Gender = Enum.TryParse<AdministrativeGender>(entity.Gender, true, out var g)
+                    ? g
+                    : (AdministrativeGender?) null,
 
+                BirthDate = entity.BirthDate?.ToString("yyyy-MM-dd")
+            };
 
+            if (!string.IsNullOrEmpty(entity.FamilyName) || !string.IsNullOrEmpty(entity.GivenName))
+            {
+                patient.Name = new List<HumanName>
+                {
+                    new()
+                    {
+                        Family = entity.FamilyName,
+                        Given = string.IsNullOrEmpty(entity.GivenName) ? null : new[] {entity.GivenName}
+                    }
+                };
+            }
 
-        //public static Patient ToEntity(FHIRPatient fhirPatient, string rawJson)
-        //{
-        //    return new Patient
-        //    {
-        //        FhirId = fhirPatient.Id ?? Guid.NewGuid().ToString(),
-        //        FamilyName = fhirPatient.Name?.FirstOrDefault()?.Family,
-        //        GivenName = fhirPatient.Name?.FirstOrDefault()?.Given?.FirstOrDefault(),
-        //        Gender = fhirPatient.Gender?.ToString(),
-        //        BirthDate = fhirPatient.BirthDateElement?.ToDateTimeOffset()?.DateTime,
-        //        JsonData = rawJson
-
-        //    };
-        //}
-
-        //public static FHIRPatient ToFhir(Patient entity)
-        //{
-        //    var patient = new FHIRPatient
-        //    {
-        //        Id = entity.FhirId,
-        //        Gender = Enum.TryParse<AdministrativeGender>(entity.Gender, true, out var g)
-        //            ? g
-        //            : (AdministrativeGender?) null,
-        //    };
-
-        //    if (entity.FamilyName != null || entity.GivenName != null)
-        //    {
-        //        patient.Name = new List<HumanName>
-        //        {
-        //            new HumanName
-        //            {
-        //                Family = entity.FamilyName,
-        //                Given = new[] {entity.GivenName}
-        //            }
-        //        };
-        //    }
-
-
-        //    if (entity.BirthDate.HasValue)
-        //    {
-
-        //        patient.BirthDate = entity.BirthDate.Value.ToString("yyyy-MM-dd");
-
-        //    }
-
-        //    return patient;
-        //}
-
+            return patient;
+        }
     }
 }
 
