@@ -15,6 +15,7 @@ namespace FHIR_IHE_API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    //[Authorize]
     public class PatientController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -29,18 +30,28 @@ namespace FHIR_IHE_API.Controllers
            _logger = logger;
         }
 
+
         //GET: api/patient
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Patient>>> GetPatients()
+        public async Task<IActionResult> GetAllPatients()
         {
-            var patients = await _context.Patients.ToListAsync();
+            var entities = await _context.Patients.ToListAsync();
 
-            if (!patients.Any())
+            //Convert entity to FHIR patients
+
+            var patients = entities.Select(PatientMapper.ToFhirFromEntity).ToList();
+
+            var bundle = new Bundle
             {
-                return NotFound("No patient has been found!");
-            }
+                Type = Bundle.BundleType.Searchset,
+                Total = patients.Count,
+                Entry = patients.Select(p => new Bundle.EntryComponent
+                {
+                    Resource = p
+                }).ToList()
+            };
 
-            return patients;
+            return new FhirResult(bundle);
         }
 
 
@@ -61,7 +72,7 @@ namespace FHIR_IHE_API.Controllers
                 await _context.SaveChangesAsync();
 
                 // 4. Return FHIR JSON back
-                return Ok(fhirPatient);
+                return new FhirResult(fhirPatient); // clean fhir json
             }
             catch (Exception ex)
             {
@@ -73,7 +84,7 @@ namespace FHIR_IHE_API.Controllers
 
         //GET: api/patient/10ea202e-5787-46b3-8ef0-377963babfad
         [HttpGet("{id}")]
-        public async Task<ActionResult<Patient>> GetPatient(string id)
+        public async Task<IActionResult> GetPatient(string id)
         { 
             var entity = await _context.Patients.FirstOrDefaultAsync(p => p.FhirId == id);
 
@@ -86,7 +97,7 @@ namespace FHIR_IHE_API.Controllers
 
             var fhirPatient = PatientMapper.ToFhirFromEntity(entity);
 
-            return Ok(fhirPatient);
+            return new FhirResult(fhirPatient);
         }
 
         // PUT: api/patient/update
