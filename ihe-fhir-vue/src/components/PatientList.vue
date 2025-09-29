@@ -4,11 +4,20 @@ import { useRouter } from "vue-router"
 import patientService from "@/services/resources/patientService.js"
 import Patient from '@/models/Patient'
 import DeletePatientModal from './DeletePatientModal.vue'
+import EditPatientModal from './EditPatientModal.vue'
+
 
 const router = useRouter()
-const retrievedPatients = ref<Patient[]>([])
-const displayedPatients = ref<any[]>()
+const existingPatients = ref<Patient[]>([])
 const isLoading = ref(true)
+const editPatient = ref()
+
+// selected patient to for deletion or viewing
+const selectedPatient = ref<Patient | null>(null)
+const filteredPatients = ref<Patient[]>([])
+const deleteDialog = ref(false)
+const editDialog = ref(false)
+const search = ref('')
 
 
 const headers = [
@@ -24,11 +33,37 @@ onMounted(async () => {
     const response = await patientService.query()
     if (response.status === 200) {
         isLoading.value = false
-        retrievedPatients.value = response.data.entry.map((e:any) => e.resource)
+        existingPatients.value = response.data.entry.map((e:any) => e.resource)
     } else {
         isLoading.value = false
     }
 })
+
+// show the delete confirmation modal
+const clickedDelete = (patient: Patient) => {
+    selectedPatient.value = patient
+    deleteDialog.value = true
+}
+
+
+// handle delete action
+const confirmDeletePatient = async () => {
+    isLoading.value = true
+    // remove the selected patient from db
+    const response = await patientService.delete(selectedPatient.value?.id)
+    if (response.status === 204) {
+        isLoading.value = false
+        filteredPatients.value = existingPatients.value.filter((p: any) =>
+            p.id != selectedPatient?.value?.id
+        )
+        existingPatients.value = filteredPatients.value
+        deleteDialog.value = false
+        selectedPatient.value = null
+    } else {
+        isLoading.value = false
+        router.push({ name: 'NotFound' })
+    }
+}
 
 const createPatient = () => {
     router.push({ name: "PatientCreate" })
@@ -37,10 +72,10 @@ const createPatient = () => {
 </script>
 
 <template>
-    <v-container v-if="retrievedPatients && retrievedPatients.length > 0">
+    <v-container v-if="existingPatients && existingPatients.length > 0">
         <v-card title="Patients" flat class="text-left">
             <!-- search patients -->
-            <v-data-table :headers="headers" :items="retrievedPatients">
+            <v-data-table :headers="headers" :items="existingPatients">
                 <template v-slot:[`item.familyName`]="{ item }">
                     <td class="text-left">{{ item.name[0].family }}</td> <!-- Left align for name -->
                 </template>
@@ -59,13 +94,18 @@ const createPatient = () => {
                         <v-btn color="primary" >
                             <v-icon>mdi-pencil</v-icon>
                         </v-btn>
-                        <v-btn color="red" class="ma-2">
+                        <v-btn color="red" class="ma-2" @click="clickedDelete(item)">
                             <v-icon>mdi-delete</v-icon>
                         </v-btn>
                     </td>
                 </template>
             </v-data-table>
         </v-card>
+
+           <!-- Delete  Confirmation Modal -->
+        <delete-patient-modal v-if="deleteDialog" :show-modal="deleteDialog" @cancelDelete="deleteDialog = false"
+            @confirmDelete="confirmDeletePatient" :selectedFamilyName="selectedPatient?.name[0].family"
+            :selectedGivenName="selectedPatient?.name[0].given[0]" />
 
     </v-container>
 

@@ -141,9 +141,9 @@ namespace FHIR_IHE_API.Controllers
 
         //DELETE: api/patient/5
         [HttpDelete("delete/{id}")]
-        public async Task<IActionResult> DeletePatient(int id)
+        public async Task<IActionResult> DeletePatient(string id)
         {
-            var patient = await _context.Patients.FindAsync(id);
+            var patient = await _context.Patients.FirstOrDefaultAsync(p => p.FhirId == id);
 
             if (patient == null)
             {
@@ -153,7 +153,7 @@ namespace FHIR_IHE_API.Controllers
             _context.Patients.Remove(patient);
             await _context.SaveChangesAsync();
 
-            return Ok("The patient has been deleted successfully.");
+            return NoContent();
         }
 
     }
