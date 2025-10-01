@@ -14,7 +14,7 @@ namespace FHIR_IHE_API.Mapper
     {
         private static readonly FhirJsonSerializer _serializer = new FhirJsonSerializer();
 
-        // Map from DTO to FHIR
+        // Map Vue PatientModel to FHIR Patient
         public static FHIRPatient ToFhirFromModel(PatientModel model)
         {
             var fhirPatient = new FHIRPatient
@@ -38,7 +38,7 @@ namespace FHIR_IHE_API.Mapper
         }
 
 
-        // Map from FHIR to DB Entity
+        // Map from FHIR Patient to DB Entity
 
         public static Patient ToEntity(FHIRPatient fhirPatient)
         {
@@ -79,6 +79,23 @@ namespace FHIR_IHE_API.Mapper
             }
 
             return patient;
+        }
+
+        public static void UpdateEntity(Patient entity, PatientModel model, string id)
+        {
+            var fhirPatient = ToFhirFromModel(model);
+
+            fhirPatient.Id = id;
+
+            entity.FhirId = fhirPatient.Id;
+            entity.FamilyName = model.Name?.FirstOrDefault()?.Family;
+            entity.GivenName = model.Name?.FirstOrDefault()?.Given.FirstOrDefault();
+            entity.Gender = model.Gender;
+            entity.BirthDate = DateTime.TryParse(model.BirthDate, out var birthDate)
+                ? birthDate 
+                : (DateTime?)null;
+
+            entity.JsonData = _serializer.SerializeToString(fhirPatient);
         }
     }
 }

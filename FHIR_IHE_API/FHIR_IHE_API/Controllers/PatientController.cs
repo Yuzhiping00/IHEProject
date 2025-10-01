@@ -121,34 +121,19 @@ namespace FHIR_IHE_API.Controllers
                 });
             }
 
-            // convert PatientModel to FHIR Patient
-
-            var fhirPatient = PatientMapper.ToFhirFromModel(updatedPatient);
-
-            // make sure fhir id is same as the id in the url
-            fhirPatient.Id = id;
-
             var entity = await _context.Patients.FirstOrDefaultAsync(p => p.FhirId == id);
 
             if (entity == null)
             {
-                return NotFound();
+                return NotFound(); 
             }
 
-            // if exists, update properties
+            PatientMapper.UpdateEntity(entity, updatedPatient, id);
 
-            entity.FamilyName = updatedPatient.Name?.FirstOrDefault()?.Family;
-            entity.GivenName = updatedPatient.Name?.FirstOrDefault()?.Given?.FirstOrDefault();
-            entity.Gender = updatedPatient.Gender;
-            entity.BirthDate = DateTime.TryParse(updatedPatient.BirthDate, out var birthDate)
-                ? birthDate
-                : (DateTime?) null;
+            //var fhirPatient = PatientMapper.ToFhirFromEntity(entity);
 
-
-            //restore json (FHIR style) 
-            var serializer = new FhirJsonSerializer();
-            entity.JsonData = await serializer.SerializeToStringAsync(fhirPatient);
-
+            var parser = new FhirJsonParser();
+            var fhirPatient = parser.Parse<FHIRPatient>(entity.JsonData);
 
             await _context.SaveChangesAsync();
             return new FhirResult(fhirPatient);
