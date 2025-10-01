@@ -9,7 +9,6 @@ const axiosSingleton = axios.create({
 axiosSingleton.interceptors.request.use(config => {
     const authStore = useAuthStore()
     console.log("token = ", authStore.token)
-
     if(authStore.token) {
         config.headers.Authorization = `Bearer ${authStore.token}`
     }

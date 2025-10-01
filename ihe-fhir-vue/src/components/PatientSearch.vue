@@ -27,7 +27,6 @@ const handleSearch = async () => {
   try {
     var response = await patientService.get(1)
     patientStore.patient = response.data;
-    console.log("The patient retrieved = ", patientStore.patient)
     loading.value = false
     patientNotFound.value = false
 

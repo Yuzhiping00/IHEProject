@@ -8,6 +8,7 @@ using Hl7.Fhir.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.SqlServer.Query.Internal;
 using FHIRPatient = Hl7.Fhir.Model.Patient;
 using Patient = FHIR_IHE_API.Models.Patient;
 
@@ -62,7 +63,7 @@ namespace FHIR_IHE_API.Controllers
             try
             {
                 // 1. Map DTO -> FHIR
-                var fhirPatient = PatientMapper.ToFhir(patientModel);
+                var fhirPatient = PatientMapper.ToFhirFromModel(patientModel);
 
                 // 2. Map FHIR -> Entity 
                 var entity = PatientMapper.ToEntity(fhirPatient);
@@ -102,41 +103,55 @@ namespace FHIR_IHE_API.Controllers
 
         // PUT: api/patient/update
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutPatient(int id, [FromBody] Patient updatedPatient)
+        public async Task<IActionResult> PutPatient(string id, [FromBody] PatientModel? updatedPatient)
         {
-            if (id != updatedPatient.Id)
+            if (updatedPatient == null)
             {
-                return BadRequest();
+                return BadRequest(new OperationOutcome
+                {
+                    Issue = new List<OperationOutcome.IssueComponent>
+                    {
+                        new OperationOutcome.IssueComponent
+                        {
+                            Severity = OperationOutcome.IssueSeverity.Error,
+                            Code = OperationOutcome.IssueType.Invalid,
+                            Diagnostics = "Invalid Patient Payload."
+                        }
+                    }
+                });
             }
-            var existingPatient = await _context.Patients.FindAsync(id);
-            if (existingPatient == null)
+
+            // convert PatientModel to FHIR Patient
+
+            var fhirPatient = PatientMapper.ToFhirFromModel(updatedPatient);
+
+            // make sure fhir id is same as the id in the url
+            fhirPatient.Id = id;
+
+            var entity = await _context.Patients.FirstOrDefaultAsync(p => p.FhirId == id);
+
+            if (entity == null)
             {
                 return NotFound();
             }
 
-            if (updatedPatient.Gender != existingPatient.Gender)
-            {
-                existingPatient.Gender = updatedPatient.Gender;
-            }
+            // if exists, update properties
 
-            if (updatedPatient.BirthDate != existingPatient.BirthDate)
-            {
-                existingPatient.BirthDate = updatedPatient.BirthDate;
-            }
+            entity.FamilyName = updatedPatient.Name?.FirstOrDefault()?.Family;
+            entity.GivenName = updatedPatient.Name?.FirstOrDefault()?.Given?.FirstOrDefault();
+            entity.Gender = updatedPatient.Gender;
+            entity.BirthDate = DateTime.TryParse(updatedPatient.BirthDate, out var birthDate)
+                ? birthDate
+                : (DateTime?) null;
 
-            if (updatedPatient.GivenName != existingPatient.GivenName)
-            {
-                existingPatient.GivenName = updatedPatient.GivenName;
-            }
 
-            if (updatedPatient.FamilyName != existingPatient.FamilyName)
-            {
-                existingPatient.FamilyName = updatedPatient.FamilyName;
-            }
+            //restore json (FHIR style) 
+            var serializer = new FhirJsonSerializer();
+            entity.JsonData = await serializer.SerializeToStringAsync(fhirPatient);
 
 
             await _context.SaveChangesAsync();
-            return Ok();
+            return new FhirResult(fhirPatient);
         }
 
         //DELETE: api/patient/5

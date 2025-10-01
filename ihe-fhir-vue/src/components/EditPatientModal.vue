@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, nextTick, watch } from 'vue';
+import { ref, nextTick, watch} from 'vue';
 import { VDateInput } from 'vuetify/lib/labs/components.mjs'
 
 const maxDate = ref(new Date())
@@ -28,20 +28,22 @@ const lastNameRules = [
     (value: any) => (/[^0-9]/.test(value)) ? true : "Last name can not contain all digits"
 ]
 
+
 watch(() => props.patient,
     (newPatient) => {
         formData.value = { ...newPatient };
     }, { deep: true });
 
-const savePatient = async() => {
+const savePatient = async () => {
+    
     if(!form.value) {
         await nextTick()
     }
 
     if(!form.value) {
-        console.error("Form reference is null")
         return
     }
+
     loading.value = true
     const { valid } = await form.value.validate()
     loading.value = false
@@ -55,7 +57,7 @@ const cancelUpdate = () => {
 </script>
 
 <template>
-    <!-- Delete Patient Modal -->
+    <!-- Edit Patient Modal -->
     <v-dialog v-model="props.showModal" width="45%">
         <v-card>
             <v-card-title class="d-flex justify-space-between align-center">
@@ -66,9 +68,9 @@ const cancelUpdate = () => {
             </v-card-title>
             <v-card-text>
                 <v-form ref="form">
-                    <v-text-field label="Last Name" v-model="formData.familyName" :rules="firstNameRules"
+                    <v-text-field label="Last Name" v-model="formData.name[0].family" :rules="firstNameRules"
                         required />
-                    <v-text-field label="First Name" v-model="formData.givenName" :rules="lastNameRules"
+                    <v-text-field label="First Name" v-model="formData.name[0].given[0]" :rules="lastNameRules"
                         required />
                     <v-select label="Gender" v-model="formData.gender" :items="items"
                         :rules="[v => !!v || 'Patient Gender is required']" required />

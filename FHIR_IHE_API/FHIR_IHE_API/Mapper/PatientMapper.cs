@@ -15,7 +15,7 @@ namespace FHIR_IHE_API.Mapper
         private static readonly FhirJsonSerializer _serializer = new FhirJsonSerializer();
 
         // Map from DTO to FHIR
-        public static FHIRPatient ToFhir(PatientModel model)
+        public static FHIRPatient ToFhirFromModel(PatientModel model)
         {
             var fhirPatient = new FHIRPatient
             {

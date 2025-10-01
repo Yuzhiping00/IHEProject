@@ -7,7 +7,7 @@ import { VDateInput } from 'vuetify/lib/labs/components.mjs'
 
 const router = useRouter()
 const patientStore = usePatientStore()
-const items = ref(['male', 'female', 'other', 'unknown'])
+const items = ref(['Male', 'Female', 'Other', 'Unknown'])
 const patientForm = ref()
 const isSubmitting = ref(false)
 const showSuccessDialog = ref(false)
@@ -38,9 +38,8 @@ const lastNameRules = [
     (value: any) => (/[^0-9]/.test(value)) ? true : "Last name can not contain all digits"
 ]
 
-const submitForm = async () => {
-    console.log("birth date:  ", patientStore.patient.birthDate)
-
+const createPatient = async () => {
+    
     if(patientStore.patient.birthDate) {
 
         // parse date string into a date object
@@ -51,14 +50,10 @@ const submitForm = async () => {
 
     }
 
-    console.log("converted birth date:  ", patientStore.patient.birthDate)
-
     const { valid } = await patientForm.value.validate()
     if (!valid) return
 
     isSubmitting.value = true;
-
-    console.log("name:  ", patientStore.patient.name)
 
     const response = await patientService.post(patientStore.patient)
     if (response && response.status === 200) {
@@ -66,6 +61,7 @@ const submitForm = async () => {
         resetForm()
         resetValidation()
         router.push('/patients')
+
     } else {
         errorMessage.value = response?.statusText || "Failed to create patient."
         showErrorSnackbar.value = true
@@ -90,7 +86,7 @@ const closeSuccessDialog = () => {
                 Create Patient
             </v-card-title>
             <v-card-text>
-                <v-form @submit.prevent="submitForm" ref="patientForm">
+                <v-form @submit.prevent="createPatient" ref="patientForm">
                     <v-text-field v-model="lastName" label="Last Name" :counter="20"
                         :rules="lastNameRules" required />
                     <v-text-field v-model="firstName" label="First Name" :counter="20"

@@ -33,7 +33,8 @@ onMounted(async () => {
     const response = await patientService.query()
     if (response.status === 200) {
         isLoading.value = false
-        existingPatients.value = response.data.entry.map((e:any) => e.resource)
+        existingPatients.value = response.data.entry.map((e: any) => e.resource)
+        console.log("patients list: ", existingPatients.value)
     } else {
         isLoading.value = false
     }
@@ -44,7 +45,6 @@ const clickedDelete = (patient: Patient) => {
     selectedPatient.value = patient
     deleteDialog.value = true
 }
-
 
 // handle delete action
 const confirmDeletePatient = async () => {
@@ -65,6 +65,49 @@ const confirmDeletePatient = async () => {
     }
 }
 
+const clickedEdit = async (patient: any) => {
+    editDialog.value = true
+
+    //deep copy
+    editPatient.value = JSON.parse(JSON.stringify(patient))
+
+    //parse YYYY-MM-DD Manually
+    const [year, month, day] = patient.birthDate?.split("-").map(Number)
+
+    editPatient.value.birthDate = new Date(year, month - 1, day)
+}
+
+const handleUpdate = async (updatedPatient: any) => {
+
+    if (updatedPatient.birthDate) {
+
+        // parse date string into a date object
+        const date = new Date(updatedPatient.birthDate)
+
+        //convert to YYYY-MM-DD
+        updatedPatient.birthDate = date.toISOString().split('T')[0]
+
+    }
+
+    isLoading.value = true
+
+    const response = await patientService.put(updatedPatient.id, updatedPatient)
+
+    if (response.status === 200) {
+        isLoading.value = false
+        existingPatients.value[existingPatients.value.findIndex(p => p.id === updatedPatient.id)] = response.data
+        editDialog.value = false
+
+    } else {
+        isLoading.value = false
+        router.push({ name: 'NotFound' })
+    }
+}
+
+const cancelUpdateForm = () => {
+    editDialog.value = false
+}
+
 const createPatient = () => {
     router.push({ name: "PatientCreate" })
 }
@@ -74,8 +117,12 @@ const createPatient = () => {
 <template>
     <v-container v-if="existingPatients && existingPatients.length > 0">
         <v-card title="Patients" flat class="text-left">
+            <template v-slot:text>
+                <v-text-field v-model="search" label="Search" prepend-inner-icon="mdi-magnify" class="mt-5"
+                    variant="outlined" hide-details single-line></v-text-field>
+            </template>
             <!-- search patients -->
-            <v-data-table :headers="headers" :items="existingPatients">
+            <v-data-table :headers="headers" :items="existingPatients" :search="search">
                 <template v-slot:[`item.familyName`]="{ item }">
                     <td class="text-left">{{ item.name[0].family }}</td> <!-- Left align for name -->
                 </template>
@@ -91,7 +138,7 @@ const createPatient = () => {
                 </template>
                 <template v-slot:[`item.actions`]="{ item }">
                     <td class="text-left">
-                        <v-btn color="primary" >
+                        <v-btn color="primary" @click="clickedEdit(item)">
                             <v-icon>mdi-pencil</v-icon>
                         </v-btn>
                         <v-btn color="red" class="ma-2" @click="clickedDelete(item)">
@@ -102,7 +149,11 @@ const createPatient = () => {
             </v-data-table>
         </v-card>
 
-           <!-- Delete  Confirmation Modal -->
+        <!-- Edit Patient Modal -->
+        <edit-patient-modal v-if="editDialog" :show-modal="editDialog" :patient="editPatient"
+            @cancel-update="cancelUpdateForm" @update-patient="handleUpdate" />
+
+        <!-- Delete  Confirmation Modal -->
         <delete-patient-modal v-if="deleteDialog" :show-modal="deleteDialog" @cancelDelete="deleteDialog = false"
             @confirmDelete="confirmDeletePatient" :selectedFamilyName="selectedPatient?.name[0].family"
             :selectedGivenName="selectedPatient?.name[0].given[0]" />
