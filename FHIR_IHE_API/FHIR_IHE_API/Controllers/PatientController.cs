@@ -37,20 +37,7 @@ namespace FHIR_IHE_API.Controllers
         public async Task<IActionResult> GetAllPatients()
         {
             var entities = await _context.Patients.ToListAsync();
-
-            //Convert entity to FHIR patients
-
-            var patients = entities.Select(PatientMapper.ToFhirFromEntity).ToList();
-
-            var bundle = new Bundle
-            {
-                Type = Bundle.BundleType.Searchset,
-                Total = patients.Count,
-                Entry = patients.Select(p => new Bundle.EntryComponent
-                {
-                    Resource = p
-                }).ToList()
-            };
+            var bundle = PatientMapper.ToBundle(entities);
 
             return new FhirResult(bundle);
         }

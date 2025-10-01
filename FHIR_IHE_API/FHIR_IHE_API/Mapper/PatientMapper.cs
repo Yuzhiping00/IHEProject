@@ -97,6 +97,25 @@ namespace FHIR_IHE_API.Mapper
 
             entity.JsonData = _serializer.SerializeToString(fhirPatient);
         }
+
+
+        public static Bundle ToBundle(IEnumerable<Patient> entities)
+        {
+            var patients = entities.Select(ToFhirFromEntity).ToList();
+            var bundle = new Bundle
+            {
+                Type = Bundle.BundleType.Searchset,
+                Total = patients.Count,
+                Entry = patients.Select(p => new Bundle.EntryComponent
+                {
+                    Resource =p
+                }).ToList()
+
+            };
+
+            return bundle;
+
+        }
     }
 }
 
