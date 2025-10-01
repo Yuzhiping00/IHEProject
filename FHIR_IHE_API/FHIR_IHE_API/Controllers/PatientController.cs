@@ -101,8 +101,8 @@ namespace FHIR_IHE_API.Controllers
             return new FhirResult(fhirPatient);
         }
 
-        // PUT: api/patient/update
-        [HttpPut("{id}")]
+        // PUT: api/patient/id/update
+        [HttpPut("{id}/update")]
         public async Task<IActionResult> PutPatient(string id, [FromBody] PatientModel? updatedPatient)
         {
             if (updatedPatient == null)
