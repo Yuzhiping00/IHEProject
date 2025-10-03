@@ -62,7 +62,7 @@ export abstract class ApiService<T> extends AxiosService {
   async post(data: any): Promise<AxiosResponse<T, any>> {
     const url = this.path + "/create"
     try {
-      console.log(data)
+      //console.log(data)
       return await this.axios.post<T>(url, data);
     } catch (error) {
       return this.genericErrorHandler(error);

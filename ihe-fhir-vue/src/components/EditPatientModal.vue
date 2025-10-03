@@ -43,7 +43,7 @@ const savePatient = async () => {
     if(!form.value) {
         return
     }
-
+    
     loading.value = true
     const { valid } = await form.value.validate()
     loading.value = false
@@ -68,9 +68,9 @@ const cancelUpdate = () => {
             </v-card-title>
             <v-card-text>
                 <v-form ref="form">
-                    <v-text-field label="Last Name" v-model="formData.name[0].family" :rules="firstNameRules"
+                    <v-text-field label="Last Name" v-model="formData.familyName" :rules="lastNameRules"
                         required />
-                    <v-text-field label="First Name" v-model="formData.name[0].given[0]" :rules="lastNameRules"
+                    <v-text-field label="First Name" v-model="formData.givenName" :rules="firstNameRules"
                         required />
                     <v-select label="Gender" v-model="formData.gender" :items="items"
                         :rules="[v => !!v || 'Patient Gender is required']" required />

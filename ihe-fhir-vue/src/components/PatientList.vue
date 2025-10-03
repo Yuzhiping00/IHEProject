@@ -33,8 +33,15 @@ onMounted(async () => {
     const response = await patientService.query()
     if (response.status === 200) {
         isLoading.value = false
-        existingPatients.value = response.data.entry.map((e: any) => e.resource)
-        console.log("patients list: ", existingPatients.value)
+        existingPatients.value = response.data.entry?.map((e: any) => {
+            const p = e.resource
+            return {
+                ...p,
+                familyName: p.name?.[0]?.family ?? "",
+                givenName: p.name?.[0]?.given?.[0] ?? ""
+            }
+        })
+       // console.log("patients list: ", existingPatients.value)
     } else {
         isLoading.value = false
     }
@@ -53,10 +60,12 @@ const confirmDeletePatient = async () => {
     const response = await patientService.delete(selectedPatient.value?.id)
     if (response.status === 204) {
         isLoading.value = false
-        filteredPatients.value = existingPatients.value.filter((p: any) =>
-            p.id != selectedPatient?.value?.id
-        )
-        existingPatients.value = filteredPatients.value
+        //use splice to remove 1 element
+        // const index = existingPatients.value.findIndex(p => p.id === selectedPatient.value?.id)
+        // if(index !== -1) {
+        //     existingPatients.value.splice(index,1)
+        // }
+        existingPatients.value = existingPatients.value.filter(p => p.id != selectedPatient.value?.id)
         deleteDialog.value = false
         selectedPatient.value = null
     } else {
@@ -78,7 +87,7 @@ const clickedEdit = async (patient: any) => {
 }
 
 const handleUpdate = async (updatedPatient: any) => {
-
+    //Format birthdate if present
     if (updatedPatient.birthDate) {
 
         // parse date string into a date object
@@ -89,13 +98,40 @@ const handleUpdate = async (updatedPatient: any) => {
 
     }
 
+    //Build a new clean FHIR patient object
+    const fhirPatient = {
+        id: updatedPatient.id,
+        gender: updatedPatient.gender,
+        birthDate: updatedPatient.birthDate,
+        name:[
+            {
+                family: updatedPatient.familyName,
+                given: [updatedPatient.givenName]
+            }
+        ]
+    }
+
     isLoading.value = true
 
-    const response = await patientService.put(updatedPatient.id, updatedPatient)
+    const response = await patientService.put(fhirPatient.id,fhirPatient)
 
     if (response.status === 200) {
         isLoading.value = false
-        existingPatients.value[existingPatients.value.findIndex(p => p.id === updatedPatient.id)] = response.data
+        const savedPatient = response.data
+
+        //Flatten again for table/search
+        const flattened = {
+            ...savedPatient,
+            familyName: savedPatient.name[0].family,
+            givenName: savedPatient.name[0].given[0]
+        }
+
+        const index = existingPatients.value.findIndex(p => p.id === fhirPatient.id)
+
+        if(index !== -1) {
+            existingPatients.value[index] = flattened
+        }
+
         editDialog.value = false
 
     } else {
@@ -112,22 +148,24 @@ const createPatient = () => {
     router.push({ name: "PatientCreate" })
 }
 
+
 </script>
 
 <template>
     <v-container v-if="existingPatients && existingPatients.length > 0">
-        <v-card title="Patients" flat class="text-left">
+        <v-card title="Patients" flat>
             <template v-slot:text>
-                <v-text-field v-model="search" label="Search" prepend-inner-icon="mdi-magnify" class="mt-5"
-                    variant="outlined" hide-details single-line></v-text-field>
+                <v-text-field v-model="search" label="Search" prepend-inner-icon="mdi-magnify" variant="outlined"
+                    hide-details single-line></v-text-field>
             </template>
+
             <!-- search patients -->
             <v-data-table :headers="headers" :items="existingPatients" :search="search">
                 <template v-slot:[`item.familyName`]="{ item }">
-                    <td class="text-left">{{ item.name[0].family }}</td> <!-- Left align for name -->
+                    <td class="text-left">{{ item.familyName }}</td> <!-- Left align for name -->
                 </template>
                 <template v-slot:[`item.givenName`]="{ item }">
-                    <td class="text-left">{{ item.name[0].given[0] }}</td> <!-- Center align for age -->
+                    <td class="text-left">{{ item.givenName }}</td> <!-- Center align for age -->
                 </template>
                 <template v-slot:[`item.gender`]="{ item }">
                     <td class="text-left">{{ item.gender }}</td> <!-- Right align for gender -->
@@ -155,8 +193,8 @@ const createPatient = () => {
 
         <!-- Delete  Confirmation Modal -->
         <delete-patient-modal v-if="deleteDialog" :show-modal="deleteDialog" @cancelDelete="deleteDialog = false"
-            @confirmDelete="confirmDeletePatient" :selectedFamilyName="selectedPatient?.name[0].family"
-            :selectedGivenName="selectedPatient?.name[0].given[0]" />
+            @confirmDelete="confirmDeletePatient" :selectedFamilyName="selectedPatient?.familyName"
+            :selectedGivenName="selectedPatient?.givenName" />
 
     </v-container>
 
