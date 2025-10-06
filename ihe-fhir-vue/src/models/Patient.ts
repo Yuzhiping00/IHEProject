@@ -23,24 +23,41 @@
 // }
 
 
+// export default class Patient {
+//     resourceType: string = "Patient"
+//     name: HumanName[] = [{family:" ", given:[""]}]
+//     gender?: "male" | "female" | "other" | "unknown"
+//     birthDate?: string
+//     id?: string;
+//     // name: { family?: string; given?: string[] }[] = [ { family: "", given: [""] } ]
+//     // meta?: Meta
+//     // text?: Narrative
+//     // telecom?:ContactPoint[]
+//     // identifier?: Identifier[]
+// }
+
+// export class HumanName {
+//     family: string = ""
+//     given: string[] = [""]
+// }
+
+
 export default class Patient {
-    resourceType: string = "Patient"
-    name: HumanName[] = [{family:" ", given:[""]}]
-    gender?: "male" | "female" | "other" | "unknown"
+    id?:string
+    familyName: string
+    givenName: string
+    gender?: string
     birthDate?: string
-    id?: string;
-    // name: { family?: string; given?: string[] }[] = [ { family: "", given: [""] } ]
-    // meta?: Meta
-    // text?: Narrative
-    // telecom?:ContactPoint[]
-    // identifier?: Identifier[]
-}
 
-export class HumanName {
-    family: string = ""
-    given: string[] = [""]
-}
+    constructor(data: Partial<Patient> = {}) {
+        this.id = data.id,
+        this.familyName = data.familyName || "",
+        this.givenName = data.givenName || "",
+        this.gender = data.gender,
+        this.birthDate = data.birthDate
+    }
 
+}
 
 
 

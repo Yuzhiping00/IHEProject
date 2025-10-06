@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from "vue-router"
 import patientService from "@/services/resources/patientService.js"
 import { usePatientStore } from '@/stores/patientStore'
@@ -16,14 +16,15 @@ const errorMessage = ref("")
 const maxDate = ref(new Date())
 const minDate = "1900-01-01"
 
+//---bind flat model props (store keeps familyName/givenName at the top level)
 const lastName = computed({
-    get: () => patientStore.patient.name[0].family,
-    set: (val:string) => patientStore.patient.name[0].family = val
+    get: () => patientStore.patient.familyName,
+    set: (val:string) => patientStore.patient.familyName = val
 })
 
 const firstName = computed({
-    get: () => patientStore.patient.name[0].given[0],
-    set: (val:string) => patientStore.patient.name[0].given[0] = val
+    get: () => patientStore.patient.givenName,
+    set: (val:string) => patientStore.patient.givenName = val
 })
 
 const firstNameRules = [
@@ -38,25 +39,43 @@ const lastNameRules = [
     (value: any) => (/[^0-9]/.test(value)) ? true : "Last name can not contain all digits"
 ]
 
-const createPatient = async () => {
-    
-    if(patientStore.patient.birthDate) {
 
-        // parse date string into a date object
-        const date = new Date(patientStore.patient.birthDate)
-
-        //convert to YYYY-MM-DD
-        patientStore.patient.birthDate = date.toISOString().split('T')[0]
-
+//computed getter/setter to convert FHIR string <-> Date object for Vuetify
+const birthDateProxy = computed({
+  get: () => {
+    const value = patientStore.patient.birthDate
+    if (!value) return null
+    // Convert "YYYY-MM-DD" string → Date safely
+    const [year, month, day] = value.split('-').map(Number)
+    return new Date(year, month - 1, day)
+  },
+  set: (val: Date | null) => {
+    if (!val) {
+      patientStore.patient.birthDate = ''
+      return
     }
+    // Convert Date → "YYYY-MM-DD" string
+    patientStore.patient.birthDate = val.toISOString().split('T')[0]
+  },
+})
+
+//---create patient---
+const createPatient = async () => {
 
     const { valid } = await patientForm.value.validate()
     if (!valid) return
 
     isSubmitting.value = true;
 
-    const response = await patientService.post(patientStore.patient)
-    if (response && response.status === 200) {
+    //convert store model -> FHIR JSON
+    const fhirPatient = patientStore.toFhir()
+    const response = await patientService.post(fhirPatient)
+
+    if (response && (response.status === 200 || response.status === 201)) {
+
+        //hydrate store with returned patient
+        patientStore.fromFhir(response.data)
+
         showSuccessDialog.value = true
         resetForm()
         resetValidation()
@@ -70,7 +89,11 @@ const createPatient = async () => {
     isSubmitting.value = false
 }
 
-const resetForm = () => patientForm.value.reset()
+//---Helpers---
+const resetForm = () => {
+    patientForm.value.reset()
+    patientStore.clearPatient()
+}
 const resetValidation = () => patientForm.value.resetValidation()
 
 const closeSuccessDialog = () => {
@@ -94,7 +117,7 @@ const closeSuccessDialog = () => {
                     <v-select v-model="patientStore.patient.gender" label="Gender" :items="items"
                         :rules="[v => !!v || 'Patient Gender is required']" required />
 
-                    <v-date-input  v-model="patientStore.patient.birthDate" clearable label="Birth of Date" :rules="[v => !!v || 'Patient Birth of Date is required']"
+                    <v-date-input  v-model="birthDateProxy" clearable label="Birth of Date" :rules="[v => !!v || 'Patient Birth of Date is required']"
                         prepend-icon="" append-inner-icon="$calendar" :max="maxDate" :min="minDate"></v-date-input>
 
                     <v-container class="mt-6">

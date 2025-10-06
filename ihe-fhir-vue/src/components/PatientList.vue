@@ -5,16 +5,14 @@ import patientService from "@/services/resources/patientService.js"
 import Patient from '@/models/Patient'
 import DeletePatientModal from './DeletePatientModal.vue'
 import EditPatientModal from './EditPatientModal.vue'
+import { usePatientStore } from '@/stores/patientStore'
 
 
 const router = useRouter()
+const patientStore = usePatientStore()
 const existingPatients = ref<Patient[]>([])
 const isLoading = ref(true)
-const editPatient = ref()
 
-// selected patient to for deletion or viewing
-const selectedPatient = ref<Patient | null>(null)
-const filteredPatients = ref<Patient[]>([])
 const deleteDialog = ref(false)
 const editDialog = ref(false)
 const search = ref('')
@@ -34,14 +32,18 @@ onMounted(async () => {
     if (response.status === 200) {
         isLoading.value = false
         existingPatients.value = response.data.entry?.map((e: any) => {
+            //flatten FHIR -> Patient Model
             const p = e.resource
-            return {
-                ...p,
-                familyName: p.name?.[0]?.family ?? "",
-                givenName: p.name?.[0]?.given?.[0] ?? ""
-            }
-        })
-       // console.log("patients list: ", existingPatients.value)
+            return new Patient ({
+                id:p.id,
+                familyName: p.name?.[0]?.family || "",
+                givenName: p.name?.[0]?.given?.[0] || "",
+                gender: p.gender,
+                birthDate: p.birthDate
+            }) 
+
+        }) ?? []
+        
     } else {
         isLoading.value = false
     }
@@ -49,7 +51,8 @@ onMounted(async () => {
 
 // show the delete confirmation modal
 const clickedDelete = (patient: Patient) => {
-    selectedPatient.value = patient
+    // push selected patient into store
+    patientStore.patient = new Patient(patient)
     deleteDialog.value = true
 }
 
@@ -57,7 +60,7 @@ const clickedDelete = (patient: Patient) => {
 const confirmDeletePatient = async () => {
     isLoading.value = true
     // remove the selected patient from db
-    const response = await patientService.delete(selectedPatient.value?.id)
+    const response = await patientService.delete(patientStore.patient?.id)
     if (response.status === 204) {
         isLoading.value = false
         //use splice to remove 1 element
@@ -65,9 +68,9 @@ const confirmDeletePatient = async () => {
         // if(index !== -1) {
         //     existingPatients.value.splice(index,1)
         // }
-        existingPatients.value = existingPatients.value.filter(p => p.id != selectedPatient.value?.id)
+        existingPatients.value = existingPatients.value.filter(p => p.id != patientStore.patient?.id)
         deleteDialog.value = false
-        selectedPatient.value = null
+        patientStore.clearPatient()
     } else {
         isLoading.value = false
         router.push({ name: 'NotFound' })
@@ -76,40 +79,12 @@ const confirmDeletePatient = async () => {
 
 const clickedEdit = async (patient: any) => {
     editDialog.value = true
-
-    //deep copy
-    editPatient.value = JSON.parse(JSON.stringify(patient))
-
-    //parse YYYY-MM-DD Manually
-    const [year, month, day] = patient.birthDate?.split("-").map(Number)
-
-    editPatient.value.birthDate = new Date(year, month - 1, day)
+    patientStore.patient = new Patient(patient) // shallow copy into store
 }
 
-const handleUpdate = async (updatedPatient: any) => {
-    //Format birthdate if present
-    if (updatedPatient.birthDate) {
-
-        // parse date string into a date object
-        const date = new Date(updatedPatient.birthDate)
-
-        //convert to YYYY-MM-DD
-        updatedPatient.birthDate = date.toISOString().split('T')[0]
-
-    }
-
+const handleUpdate = async () => {
     //Build a new clean FHIR patient object
-    const fhirPatient = {
-        id: updatedPatient.id,
-        gender: updatedPatient.gender,
-        birthDate: updatedPatient.birthDate,
-        name:[
-            {
-                family: updatedPatient.familyName,
-                given: [updatedPatient.givenName]
-            }
-        ]
-    }
+    const fhirPatient = patientStore.toFhir()
 
     isLoading.value = true
 
@@ -117,19 +92,13 @@ const handleUpdate = async (updatedPatient: any) => {
 
     if (response.status === 200) {
         isLoading.value = false
-        const savedPatient = response.data
+        patientStore.fromFhir(response.data)
 
-        //Flatten again for table/search
-        const flattened = {
-            ...savedPatient,
-            familyName: savedPatient.name[0].family,
-            givenName: savedPatient.name[0].given[0]
-        }
-
-        const index = existingPatients.value.findIndex(p => p.id === fhirPatient.id)
+        //update list in table
+        const index = existingPatients.value.findIndex(p => p.id === patientStore.patient.id)
 
         if(index !== -1) {
-            existingPatients.value[index] = flattened
+            existingPatients.value[index] = new Patient(patientStore.patient)
         }
 
         editDialog.value = false
@@ -188,13 +157,13 @@ const createPatient = () => {
         </v-card>
 
         <!-- Edit Patient Modal -->
-        <edit-patient-modal v-if="editDialog" :show-modal="editDialog" :patient="editPatient"
+        <edit-patient-modal v-if="editDialog" :show-modal="editDialog" :patient="patientStore.patient"
             @cancel-update="cancelUpdateForm" @update-patient="handleUpdate" />
 
         <!-- Delete  Confirmation Modal -->
         <delete-patient-modal v-if="deleteDialog" :show-modal="deleteDialog" @cancelDelete="deleteDialog = false"
-            @confirmDelete="confirmDeletePatient" :selectedFamilyName="selectedPatient?.familyName"
-            :selectedGivenName="selectedPatient?.givenName" />
+            @confirmDelete="confirmDeletePatient" :selectedFamilyName="patientStore.patient.familyName"
+            :selectedGivenName="patientStore.patient.givenName" />
 
     </v-container>
 
