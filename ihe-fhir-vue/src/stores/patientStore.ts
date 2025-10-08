@@ -70,8 +70,6 @@ export const usePatientStore = defineStore("patient", {
           const month = String(val.getMonth() + 1).padStart(2, '0')
           const day = String(val.getDate()).padStart(2, '0')
           this.patient[fieldName] = `${year}-${month}-${day}`
-          debugger
-          console.log("date of birth: ", this.patient[fieldName])
         }
       })
     }
