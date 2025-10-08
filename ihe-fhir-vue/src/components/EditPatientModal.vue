@@ -17,23 +17,26 @@ const emit = defineEmits(["update-patient", "cancel-update"])
 const loading = ref(false)
 
 //computed getter/setter to convert FHIR string <-> Date object for Vuetify
-const birthDateProxy = computed({
-  get: () => {
-    const value = patientStore.patient.birthDate
-    if (!value) return null
-    // Convert "YYYY-MM-DD" string → Date safely
-    const [year, month, day] = value.split('-').map(Number)
-    return new Date(year, month - 1, day)
-  },
-  set: (val: Date | null) => {
-    if (!val) {
-      patientStore.patient.birthDate = ''
-      return
-    }
-    // Convert Date → "YYYY-MM-DD" string
-    patientStore.patient.birthDate = val.toISOString().split('T')[0]
-  },
-})
+//computed getter/setter to convert FHIR string <-> Date object for Vuetify
+// const birthDateProxy = computed({
+//   get: () => {
+//     const value = patientStore.patient.birthDate
+//     if (!value) return null
+//     // Convert "YYYY-MM-DD" string → Date safely
+//     const [year, month, day] = value.split('-').map(Number)
+//     return new Date(year, month - 1, day)
+//   },
+//   set: (val: Date | null) => {
+//     if (!val) {
+//       patientStore.patient.birthDate = ''
+//       return
+//     }
+//     // Convert Date → "YYYY-MM-DD" string
+//     patientStore.patient.birthDate = val.toISOString().split('T')[0]
+//   },
+// })
+
+const birthDateProxy = patientStore.createDateProxy("birthDate")
 
 const firstNameRules = [
     (value: any) => value ? true : 'You must enter a patient first name',

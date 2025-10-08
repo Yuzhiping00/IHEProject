@@ -39,25 +39,26 @@ const lastNameRules = [
     (value: any) => (/[^0-9]/.test(value)) ? true : "Last name can not contain all digits"
 ]
 
+const birthDateProxy = patientStore.createDateProxy("birthDate")
 
 //computed getter/setter to convert FHIR string <-> Date object for Vuetify
-const birthDateProxy = computed({
-  get: () => {
-    const value = patientStore.patient.birthDate
-    if (!value) return null
-    // Convert "YYYY-MM-DD" string → Date safely
-    const [year, month, day] = value.split('-').map(Number)
-    return new Date(year, month - 1, day)
-  },
-  set: (val: Date | null) => {
-    if (!val) {
-      patientStore.patient.birthDate = ''
-      return
-    }
-    // Convert Date → "YYYY-MM-DD" string
-    patientStore.patient.birthDate = val.toISOString().split('T')[0]
-  },
-})
+// const birthDateProxy = computed({
+//   get: () => {
+//     const value = patientStore.patient.birthDate
+//     if (!value) return null
+//     // Convert "YYYY-MM-DD" string → Date safely
+//     const [year, month, day] = value.split('-').map(Number)
+//     return new Date(year, month - 1, day)
+//   },
+//   set: (val: Date | null) => {
+//     if (!val) {
+//       patientStore.patient.birthDate = ''
+//       return
+//     }
+//     // Convert Date → "YYYY-MM-DD" string
+//     patientStore.patient.birthDate = val.toISOString().split('T')[0]
+//   },
+// })
 
 //---create patient---
 const createPatient = async () => {

@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import Patient from "@/models/Patient";
 import patientService from "@/services/resources/patientService";
+import { computed } from 'vue'
 
 export const usePatientStore = defineStore("patient", {
   state: () => {
@@ -49,17 +50,30 @@ export const usePatientStore = defineStore("patient", {
     // reset to blank patient
     clearPatient() {
       this.patient = new Patient();
+    },
+
+   // 创建一个通用 computed 双向绑定方法
+    createDateProxy(fieldName: keyof Patient) {
+      return computed({
+        get: () => {
+          const value = this.patient[fieldName]
+          if (!value) return null
+          const [year, month, day] = value.split('-').map(Number)
+          return new Date(year, month - 1, day)
+        },
+        set: (val: Date | null) => {
+          if (!val) {
+            this.patient[fieldName] = ''
+            return
+          }
+          const year = val.getFullYear()
+          const month = String(val.getMonth() + 1).padStart(2, '0')
+          const day = String(val.getDate()).padStart(2, '0')
+          this.patient[fieldName] = `${year}-${month}-${day}`
+          debugger
+          console.log("date of birth: ", this.patient[fieldName])
+        }
+      })
     }
-
-    // convertDateToString(){
-    //   //Format birthdate if present
-    //   if (this.patient.birthDate) {
-    //     // parse date string into a date object
-    //     const date = new Date(this.patient.birthDate);
-
-    //     //convert to YYYY-MM-DD
-    //     this.patient.birthDate = date.toISOString().split("T")[0];
-    //   }
-    // },
   },
 });
