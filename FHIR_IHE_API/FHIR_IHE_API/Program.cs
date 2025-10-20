@@ -12,9 +12,11 @@ namespace FHIR_IHE_API
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
+            // Add DbContext with PostgreSQL
+
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
             {
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+                options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
 
             });
 

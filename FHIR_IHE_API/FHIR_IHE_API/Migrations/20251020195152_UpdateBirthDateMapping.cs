@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace FHIR_IHE_API.Migrations
 {
     /// <inheritdoc />
-    public partial class UpdatePatientModel : Migration
+    public partial class UpdateBirthDateMapping : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -14,22 +14,22 @@ namespace FHIR_IHE_API.Migrations
             migrationBuilder.AlterColumn<DateTime>(
                 name: "BirthDate",
                 table: "Patients",
-                type: "datetime2",
+                type: "date",
                 nullable: false,
-                oldClrType: typeof(DateOnly),
-                oldType: "date");
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterColumn<DateOnly>(
+            migrationBuilder.AlterColumn<DateTime>(
                 name: "BirthDate",
                 table: "Patients",
-                type: "date",
+                type: "timestamp with time zone",
                 nullable: false,
                 oldClrType: typeof(DateTime),
-                oldType: "datetime2");
+                oldType: "date");
         }
     }
 }

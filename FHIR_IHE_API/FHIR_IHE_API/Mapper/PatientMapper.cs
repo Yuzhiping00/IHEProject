@@ -2,6 +2,7 @@
 using System.Text.Json;
 using FHIR_IHE_API.Models;
 using Hl7.Fhir.Serialization;
+using Hl7.Fhir.Support;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Patient = FHIR_IHE_API.Models.Patient;
@@ -48,7 +49,7 @@ namespace FHIR_IHE_API.Mapper
                 FamilyName = fhirPatient.Name?.FirstOrDefault()?.Family,
                 GivenName = fhirPatient.Name?.FirstOrDefault()?.Given?.FirstOrDefault(),
                 Gender = fhirPatient.Gender?.ToString(),
-                BirthDate = fhirPatient.BirthDateElement?.ToDateTimeOffset()?.DateTime,
+                BirthDate = fhirPatient.BirthDateElement?.ToDateTimeOffset()?.Date,
                 JsonData = _serializer.SerializeToString(fhirPatient)
             };
         }
