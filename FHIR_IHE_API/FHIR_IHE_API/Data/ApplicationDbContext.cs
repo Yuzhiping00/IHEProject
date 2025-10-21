@@ -8,10 +8,17 @@ namespace FHIR_IHE_API.Data
     {
         public DbSet<Patient> Patients { get; set; }
 
-        public DbSet<Provider> Providers { get; set; }
-
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         { 
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Patient>(entity =>
+            {
+                entity.Property(p => p.BirthDate)
+                    .HasColumnType("date");
+            });
         }
     }
 }

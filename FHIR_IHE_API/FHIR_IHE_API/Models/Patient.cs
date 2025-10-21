@@ -12,6 +12,8 @@ namespace FHIR_IHE_API.Models
         [MaxLength(20)]
         public string? FamilyName { get; set; }
 
+        public string? FhirId { get; set; }
+
         [Required]
         [MaxLength(20)]
         public string? GivenName { get; set; }
@@ -19,12 +21,9 @@ namespace FHIR_IHE_API.Models
         [Required]
         public string? Gender { get; set; }
 
-        [Required] public DateTime BirthDate { get; set; }
+        [Required] 
+        public DateTime? BirthDate { get; set; }
 
-        string ResourceType => "Patient";
-
-        public int ProviderId { get; set; }
-
-        public Provider? Provider { get; set; }
+        public string? JsonData { get; set; }
     }
 }

@@ -5,17 +5,14 @@ import patientService from "@/services/resources/patientService.js"
 import Patient from '@/models/Patient'
 import DeletePatientModal from './DeletePatientModal.vue'
 import EditPatientModal from './EditPatientModal.vue'
+import { usePatientStore } from '@/stores/patientStore'
 
 
 const router = useRouter()
-const displayedPatients = ref<any[]>()
-const retrievedPatients = ref<Patient[]>([])
-const filteredPatients = ref<Patient[]>([])
+const patientStore = usePatientStore()
+const existingPatients = ref<Patient[]>([])
 const isLoading = ref(true)
-const editPatient = ref()
 
-// selected patient to for deletion or viewing
-const selectedPatient = ref<Patient | null>(null)
 const deleteDialog = ref(false)
 const editDialog = ref(false)
 const search = ref('')
@@ -32,19 +29,21 @@ const headers = [
 onMounted(async () => {
     isLoading.value = true
     const response = await patientService.query()
-    isLoading.value = false
     if (response.status === 200) {
         isLoading.value = false
-        retrievedPatients.value = response.data
-        displayedPatients.value = retrievedPatients.value.map(({ id, familyName, givenName, gender, birthDate }) => ({
-            id,
-            familyName,
-            givenName,
-            gender,
-            birthDate,
-            actions: ''
-        }))
+        existingPatients.value = response.data.entry?.map((e: any) => {
+            //flatten FHIR -> Patient Model
+            const p = e.resource
+            return new Patient ({
+                id:p.id,
+                familyName: p.name?.[0]?.family || "",
+                givenName: p.name?.[0]?.given?.[0] || "",
+                gender: p.gender,
+                birthDate: p.birthDate
+            }) 
 
+        }) ?? []
+        
     } else {
         isLoading.value = false
     }
@@ -52,7 +51,8 @@ onMounted(async () => {
 
 // show the delete confirmation modal
 const clickedDelete = (patient: Patient) => {
-    selectedPatient.value = patient
+    // push selected patient into store
+    patientStore.patient = new Patient(patient)
     deleteDialog.value = true
 }
 
@@ -60,50 +60,51 @@ const clickedDelete = (patient: Patient) => {
 const confirmDeletePatient = async () => {
     isLoading.value = true
     // remove the selected patient from db
-    const response = await patientService.delete(selectedPatient.value?.id)
-    if (response.status === 200) {
+    const response = await patientService.delete(patientStore.patient?.id)
+    if (response.status === 204) {
         isLoading.value = false
-        filteredPatients.value = displayedPatients.value.filter((p: any) =>
-            p.id != selectedPatient?.value?.id
-        )
-        displayedPatients.value = filteredPatients.value
+        //use splice to remove 1 element
+        // const index = existingPatients.value.findIndex(p => p.id === selectedPatient.value?.id)
+        // if(index !== -1) {
+        //     existingPatients.value.splice(index,1)
+        // }
+        existingPatients.value = existingPatients.value.filter(p => p.id != patientStore.patient?.id)
         deleteDialog.value = false
-        selectedPatient.value = null
+        patientStore.clearPatient()
     } else {
         isLoading.value = false
         router.push({ name: 'NotFound' })
     }
 }
 
-const clickedEdit = (patient: any) => {
+const clickedEdit = async (patient: any) => {
     editDialog.value = true
-    editPatient.value = patient
-    editPatient.value.birthDate = new Date(patient.birthDate)
-    console.log("patient to be edited: ", editPatient.value.birthDate)
+    patientStore.patient = new Patient(patient) // shallow copy into store
 }
 
-const handleUpdate = async (updatedPatient: any) => {
-    let mappedPatient = retrievedPatients.value.find(p => p.id === updatedPatient.id)
-
-    if (mappedPatient && updatedPatient) {
-        Object.assign(mappedPatient, {
-            birthDate: updatedPatient.birthDate,
-            familyName: updatedPatient.familyName,
-            givenName: updatedPatient.givenName,
-            id: updatedPatient.id,
-            gender: updatedPatient.gender,
-        })
-    }
+const handleUpdate = async () => {
+    //Build a new clean FHIR patient object
+    const fhirPatient = patientStore.toFhir()
 
     isLoading.value = true
-    const response = await patientService.put(updatedPatient.id, mappedPatient)
-    isLoading.value = false
+
+    const response = await patientService.put(fhirPatient.id,fhirPatient)
 
     if (response.status === 200) {
-        displayedPatients.value[displayedPatients.value.findIndex(p => p.id === updatedPatient.id)] = updatedPatient
-        selectedPatient.value = null
+        isLoading.value = false
+        patientStore.fromFhir(response.data)
+
+        //update list in table
+        const index = existingPatients.value.findIndex(p => p.id === patientStore.patient.id)
+
+        if(index !== -1) {
+            existingPatients.value[index] = new Patient(patientStore.patient)
+        }
+
         editDialog.value = false
+
     } else {
+        isLoading.value = false
         router.push({ name: 'NotFound' })
     }
 }
@@ -116,17 +117,19 @@ const createPatient = () => {
     router.push({ name: "PatientCreate" })
 }
 
+
 </script>
 
 <template>
-    <v-container v-if="displayedPatients && displayedPatients.length > 0">
-        <v-card title="Patients" flat class="text-left">
-            <!-- search patients -->
+    <v-container v-if="existingPatients && existingPatients.length > 0">
+        <v-card title="Patients" flat>
             <template v-slot:text>
-                <v-text-field v-model="search" label="Search" prepend-inner-icon="mdi-magnify" class="mt-5"
-                    variant="outlined" hide-details single-line></v-text-field>
+                <v-text-field v-model="search" label="Search" prepend-inner-icon="mdi-magnify" variant="outlined"
+                    hide-details single-line></v-text-field>
             </template>
-            <v-data-table :headers="headers" :items="displayedPatients" :search="search">
+
+            <!-- search patients -->
+            <v-data-table :headers="headers" :items="existingPatients" :search="search">
                 <template v-slot:[`item.familyName`]="{ item }">
                     <td class="text-left">{{ item.familyName }}</td> <!-- Left align for name -->
                 </template>
@@ -137,7 +140,7 @@ const createPatient = () => {
                     <td class="text-left">{{ item.gender }}</td> <!-- Right align for gender -->
                 </template>
                 <template v-slot:[`item.birthDate`]="{ item }">
-                    <td class="text-left">{{ new Date(item.birthDate).toISOString().split("T")[0] }}</td>
+                    <td class="text-left">{{ item.birthDate }}</td>
                     <!-- Right align for gender -->
                 </template>
                 <template v-slot:[`item.actions`]="{ item }">
@@ -153,14 +156,14 @@ const createPatient = () => {
             </v-data-table>
         </v-card>
 
+        <!-- Edit Patient Modal -->
+        <edit-patient-modal v-if="editDialog" :show-modal="editDialog" :patient="patientStore.patient"
+            @cancel-update="cancelUpdateForm" @update-patient="handleUpdate" />
+
         <!-- Delete  Confirmation Modal -->
         <delete-patient-modal v-if="deleteDialog" :show-modal="deleteDialog" @cancelDelete="deleteDialog = false"
-            @confirmDelete="confirmDeletePatient" :selectedFamilyName="selectedPatient?.familyName"
-            :selectedGivenName="selectedPatient?.givenName" />
-
-        <!-- Edit Patient Modal -->
-        <edit-patient-modal v-if="editDialog" :show-modal="editDialog" :patient="editPatient"
-            @cancel-update="cancelUpdateForm" @update-patient="handleUpdate" />
+            @confirmDelete="confirmDeletePatient" :selectedFamilyName="patientStore.patient.familyName"
+            :selectedGivenName="patientStore.patient.givenName" />
 
     </v-container>
 

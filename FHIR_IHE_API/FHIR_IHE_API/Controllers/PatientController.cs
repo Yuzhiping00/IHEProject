@@ -1,116 +1,136 @@
-
-using System.Reflection.Metadata;
+using System.Text.Json;
 using FHIR_IHE_API.Data;
+using FHIR_IHE_API.Mapper;
 using FHIR_IHE_API.Models;
+using Hl7.Fhir.Model;
 using Hl7.Fhir.Rest;
+using Hl7.Fhir.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.SqlServer.Query.Internal;
+using FHIRPatient = Hl7.Fhir.Model.Patient;
+using Patient = FHIR_IHE_API.Models.Patient;
 
 namespace FHIR_IHE_API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    //[Authorize]
     public class PatientController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly FhirJsonParser  _parser = new FhirJsonParser();
+        private readonly FhirJsonSerializer _serializer = new FhirJsonSerializer();
+        private readonly ILogger<PatientController> _logger;
 
         // Injecting database in constructor
-        public PatientController(ApplicationDbContext context)
+        public PatientController(ApplicationDbContext context, ILogger<PatientController> logger)
         {
            _context = context;
+           _logger = logger;
         }
+
 
         //GET: api/patient
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Patient>>> GetPatients()
+        public async Task<IActionResult> GetAllPatients()
         {
-            var patients = await _context.Patients.ToListAsync();
+            var entities = await _context.Patients.ToListAsync();
+            var bundle = PatientMapper.ToBundle(entities);
 
-            if (!patients.Any())
-            {
-                return NotFound("No patient has been found!");
-            }
-
-            return patients;
+            return new FhirResult(bundle);
         }
 
-        //POST: api/patient/create
+
         [HttpPost("create")]
-        public async Task<ActionResult<Patient>> CreatePatient([FromBody]Patient patient)
+        public async Task<ActionResult> CreatePatient([FromBody]PatientModel patientModel)
         {
-           _context.Patients.Add(patient);
-           try
-           {
-               await _context.SaveChangesAsync();
-               return patient;
-           }
-           catch (Exception ex)
-           {
-               return BadRequest(ex.Message);
-           }
 
-        }
-
-        //GET: api/patient/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Patient>> GetPatient(int id)
-        {
-           var patient = await _context.Patients.FindAsync(id);
-
-           if (patient == null)
-           {
-               return NotFound();
-           }
-
-           return patient;
-        }
-
-        // PUT: api/patient/update
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutPatient(int id, [FromBody] Patient updatedPatient)
-        {
-            if (id != updatedPatient.Id)
+            try
             {
-                return BadRequest();
+                // 1. Map DTO -> FHIR
+                var fhirPatient = PatientMapper.ToFhirFromModel(patientModel);
+
+                // 2. Map FHIR -> Entity 
+                var entity = PatientMapper.ToEntity(fhirPatient);
+
+                // 3. Save
+                _context.Patients.Add(entity);
+                await _context.SaveChangesAsync();
+
+                // 4. Return FHIR JSON back
+                return new FhirResult(fhirPatient); // clean fhir json
             }
-            var existingPatient = await _context.Patients.FindAsync(id);
-            if (existingPatient == null)
+            catch (Exception ex)
+            {
+               // return BadRequest(ex.Message);
+               return BadRequest(new { error = ex.Message });
+            }
+
+        }
+
+        //GET: api/patient/10ea202e-5787-46b3-8ef0-377963babfad
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetPatient(string id)
+        { 
+            var entity = await _context.Patients.FirstOrDefaultAsync(p => p.FhirId == id);
+
+            if (entity == null)
             {
                 return NotFound();
             }
 
-            if (updatedPatient.Gender != existingPatient.Gender)
+            //convert DB entity -> Fhir patient
+
+            var fhirPatient = PatientMapper.ToFhirFromEntity(entity);
+
+            return new FhirResult(fhirPatient);
+        }
+
+        // PUT: api/patient/id/update
+        [HttpPut("{id}/update")]
+        public async Task<IActionResult> PutPatient(string id, [FromBody] PatientModel? updatedPatient)
+        {
+            if (updatedPatient == null)
             {
-                existingPatient.Gender = updatedPatient.Gender;
+                return BadRequest(new OperationOutcome
+                {
+                    Issue = new List<OperationOutcome.IssueComponent>
+                    {
+                        new OperationOutcome.IssueComponent
+                        {
+                            Severity = OperationOutcome.IssueSeverity.Error,
+                            Code = OperationOutcome.IssueType.Invalid,
+                            Diagnostics = "Invalid Patient Payload."
+                        }
+                    }
+                });
             }
 
-            if (updatedPatient.BirthDate != existingPatient.BirthDate)
+            var entity = await _context.Patients.FirstOrDefaultAsync(p => p.FhirId == id);
+
+            if (entity == null)
             {
-                existingPatient.BirthDate = updatedPatient.BirthDate;
+                return NotFound(); 
             }
 
-            if (updatedPatient.GivenName != existingPatient.GivenName)
-            {
-                existingPatient.GivenName = updatedPatient.GivenName;
-            }
+            PatientMapper.UpdateEntity(entity, updatedPatient, id);
 
-            if (updatedPatient.FamilyName != existingPatient.FamilyName)
-            {
-                existingPatient.FamilyName = updatedPatient.FamilyName;
-            }
+            //var fhirPatient = PatientMapper.ToFhirFromEntity(entity);
 
+            var parser = new FhirJsonParser();
+            var fhirPatient = parser.Parse<FHIRPatient>(entity.JsonData);
 
             await _context.SaveChangesAsync();
-            return Ok();
+            return new FhirResult(fhirPatient);
         }
 
         //DELETE: api/patient/5
         [HttpDelete("delete/{id}")]
-        public async Task<IActionResult> DeletePatient(int id)
+        public async Task<IActionResult> DeletePatient(string id)
         {
-            var patient = await _context.Patients.FindAsync(id);
+            var patient = await _context.Patients.FirstOrDefaultAsync(p => p.FhirId == id);
 
             if (patient == null)
             {
@@ -120,7 +140,7 @@ namespace FHIR_IHE_API.Controllers
             _context.Patients.Remove(patient);
             await _context.SaveChangesAsync();
 
-            return Ok("The patient has been deleted successfully.");
+            return NoContent();
         }
 
     }
