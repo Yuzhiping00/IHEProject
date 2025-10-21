@@ -37,9 +37,9 @@ const login = async () => {
     }
 }
 
-const resetPassword = () => {
-    router.push({ name: "ResetPassword" })
-}
+// const resetPassword = () => {
+//     router.push({ name: "ResetPassword" })
+// }
 
 watch(() => password.value, (newValue) => {
     if (newValue) {
@@ -61,7 +61,7 @@ watch(() => email.value, (newValue) => {
             {{ errorMessage }}
         </v-alert>
         <br />
-        <!-- <v-row>
+        <v-row>
             <v-col cols="12" md="8" offset-md="2">
                 <v-card>
                     <v-card-title>
@@ -87,9 +87,9 @@ watch(() => email.value, (newValue) => {
                     </v-card-text>
                 </v-card>
             </v-col>
-        </v-row> -->
+        </v-row>
 
-        <v-card class="mx-auto pa-12 pb-8" elevation="8" max-width="540" rounded="lg">
+        <!-- <v-card class="mx-auto pa-12 pb-8" elevation="8" max-width="540" rounded="lg">
             <div class="text-h6 text-md-h5 text-lg-h6">Account</div>
             <v-form ref="loginForm">
                 <div class="text-subtitle-1 text-medium-emphasis d-flex align-center justify-space-between">
@@ -132,7 +132,7 @@ watch(() => email.value, (newValue) => {
                     </v-btn>
                 </v-card-text>
             </v-form>
-        </v-card>
+        </v-card> -->
 
     </v-container>
 

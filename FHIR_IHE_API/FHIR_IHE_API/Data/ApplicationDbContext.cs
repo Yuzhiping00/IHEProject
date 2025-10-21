@@ -4,13 +4,9 @@ using FHIR_IHE_API.Models;
 namespace FHIR_IHE_API.Data
 {
     
-    public class ApplicationDbContext : DbContext
+    public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
     {
         public DbSet<Patient> Patients { get; set; }
-
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
-        { 
-        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

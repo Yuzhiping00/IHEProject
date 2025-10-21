@@ -13,14 +13,14 @@ const routes = [
     component: Login,
   },
 
-  {
-    path: "/reset-password",
-    name: "ResetPassword",
-    component: ResetPassword,
-    meta: {
-      requireAuth: true
-    }
-  },
+  // {
+  //   path: "/reset-password",
+  //   name: "ResetPassword",
+  //   component: ResetPassword,
+  //   meta: {
+  //     requireAuth: true
+  //   }
+  // },
   
   {
       path:"/create",
