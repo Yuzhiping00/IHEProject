@@ -26,24 +26,10 @@ const headers = [
 
 onMounted(async () => {
     isLoading.value = true
-    const response = await patientService.query()
-    if (response.status === 200) {
-        isLoading.value = false
-        existingPatients.value = response.data.entry?.map((e: any) => {
-            //flatten FHIR -> Patient Model
-            const p = e.resource
-            return new Patient ({
-                id:p.id,
-                familyName: p.name?.[0]?.family || "",
-                givenName: p.name?.[0]?.given?.[0] || "",
-                gender: p.gender,
-                birthDate: p.birthDate
-            }) 
-
-        }) ?? []
-        
-    } else {
-        isLoading.value = false
+    try {
+        existingPatients.value = await patientService.queryPatients();
+    } finally {
+        isLoading.value = false;
     }
 })
 
