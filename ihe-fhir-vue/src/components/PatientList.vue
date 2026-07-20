@@ -7,7 +7,6 @@ import DeletePatientModal from './DeletePatientModal.vue'
 import EditPatientModal from './EditPatientModal.vue'
 import { usePatientStore } from '@/stores/patientStore'
 
-
 const router = useRouter()
 const patientStore = usePatientStore()
 const existingPatients = ref<Patient[]>([])
@@ -17,14 +16,13 @@ const deleteDialog = ref(false)
 const editDialog = ref(false)
 const search = ref('')
 
-
 const headers = [
     { title: "Last Name", align: "start", key: "familyName" },
     { title: "First Name", align: "start", key: "givenName" },
     { title: "Gender", align: "start", key: "gender" },
     { title: "Birth Date", align: "start", key: "birthDate" },
     { title: "Actions", align: "start", key: "actions" },
-];
+] as const;
 
 onMounted(async () => {
     isLoading.value = true
