@@ -8,7 +8,7 @@ namespace FHIR_IHE_API
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
@@ -96,6 +96,13 @@ namespace FHIR_IHE_API
             });
 
             var app = builder.Build();
+
+            using (var scope = app.Services.CreateScope())
+            {
+                var services = scope.ServiceProvider;
+
+                await IdentitySeeder.SeedAsync(services);
+            }
 
             // ----------------------------------------
             // Development tools
