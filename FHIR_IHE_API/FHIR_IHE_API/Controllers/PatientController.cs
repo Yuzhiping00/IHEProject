@@ -79,11 +79,36 @@ namespace FHIR_IHE_API.Controllers
                 return NotFound();
             }
 
-            //convert DB entity -> Fhir patient
+            // ----------------------------------------
+            // Provider can access any patient
+            // ----------------------------------------
 
-            var fhirPatient = PatientMapper.ToFhirFromEntity(entity);
+            if (User.IsInRole("Provider"))
+            {
+                var fhirPatient = PatientMapper.ToFhirFromEntity(entity);
 
-            return new FhirResult(fhirPatient);
+                return new FhirResult(fhirPatient);
+            }
+
+            // ----------------------------------------
+            // Patient can access only their own record
+            // ----------------------------------------
+
+            var patientIdClaim = User.FindFirst("patientId")?.Value;
+
+            if (!int.TryParse(patientIdClaim, out var currentPatientId))
+            {
+                return Forbid();
+            }
+
+            if (entity.Id != currentPatientId)
+            {
+                return Forbid();
+            }
+
+            var ownPatient = PatientMapper.ToFhirFromEntity(entity);
+
+            return new FhirResult(ownPatient);
         }
 
         // PUT: api/patient/id/update
