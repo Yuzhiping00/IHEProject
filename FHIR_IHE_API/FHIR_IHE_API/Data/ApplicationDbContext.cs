@@ -1,4 +1,4 @@
-using FHIR_IHE_API.Data.Models.Identity;
+using FHIR_IHE_API.Identity;
 using FHIR_IHE_API.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;

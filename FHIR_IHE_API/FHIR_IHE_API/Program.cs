@@ -1,5 +1,5 @@
 using FHIR_IHE_API.Data;
-using FHIR_IHE_API.Data.Models.Identity;
+using FHIR_IHE_API.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

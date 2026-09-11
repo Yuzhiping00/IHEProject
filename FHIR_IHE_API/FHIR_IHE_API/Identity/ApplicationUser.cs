@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 
-namespace FHIR_IHE_API.Data.Models.Identity
+namespace FHIR_IHE_API.Identity
 {
     public class ApplicationUser : IdentityUser
     {
