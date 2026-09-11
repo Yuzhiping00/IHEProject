@@ -11,14 +11,15 @@ const routes = [
     name: "Login",
     component: Login,
   },
-  
+
   {
-      path:"/create",
-      name:"PatientCreate",
-      component:PatientCreate,
-      meta: {
-        requireAuth: true
-      }
+    path: "/create",
+    name: "PatientCreate",
+    component: PatientCreate,
+    meta: {
+      requireAuth: true,
+      role: "Provider",
+    },
   },
 
   {
@@ -26,8 +27,9 @@ const routes = [
     name: "PatientList",
     component: PatientList,
     meta: {
-      requireAuth: true
-    }
+      requireAuth: true,
+      role: "Provider",
+    },
   },
 
   {
@@ -44,13 +46,32 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore();
-  
-  if(to.meta.requireAuth && !authStore.isAuthenticated) {
-    // Redirect to login if not authenticated
-    next("/")
-  } else {
-    next()
+
+  // ----------------------------------------
+  // Authentication check
+  // ----------------------------------------
+
+  if (to.meta.requireAuth && !authStore.isAuthenticated) {
+    next({
+      name: "Login",
+    });
+
+    return;
   }
-})
+
+  // ----------------------------------------
+  // Role check
+  // ----------------------------------------
+
+  if (to.meta.role && authStore.user?.role !== to.meta.role) {
+    next({
+      name: "NotFound",
+    });
+
+    return;
+  }
+
+  next();
+});
 
 export default router;

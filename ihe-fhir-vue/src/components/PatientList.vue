@@ -6,11 +6,13 @@ import Patient from '@/models/Patient'
 import DeletePatientModal from './DeletePatientModal.vue'
 import EditPatientModal from './EditPatientModal.vue'
 import { usePatientStore } from '@/stores/patientStore'
+import { useAuthStore } from '@/stores/authStore'
 
 const router = useRouter()
 const patientStore = usePatientStore()
 const existingPatients = ref<Patient[]>([])
 const isLoading = ref(true)
+const authStore = useAuthStore()
 
 const deleteDialog = ref(false)
 const editDialog = ref(false)
@@ -129,10 +131,10 @@ const createPatient = () => {
                 </template>
                 <template v-slot:[`item.actions`]="{ item }">
                     <td class="text-left">
-                        <v-btn color="primary" @click="clickedEdit(item)">
+                        <v-btn  v-if="authStore.isProvider" color="primary" @click="clickedEdit(item)">
                             <v-icon>mdi-pencil</v-icon>
                         </v-btn>
-                        <v-btn color="red" class="ma-2" @click="clickedDelete(item)">
+                        <v-btn v-if="authStore.isProvider" color="red" class="ma-2" @click="clickedDelete(item)">
                             <v-icon>mdi-delete</v-icon>
                         </v-btn>
                     </td>
@@ -157,7 +159,7 @@ const createPatient = () => {
                 <p class="font-weight-bold">No patients found. Please create a new patient below to get started.</p>
             </v-alert>
             <br />
-            <v-btn @click="createPatient" color="success" rounded="xl" variant="elevated" class="mb-6">
+            <v-btn @click="createPatient"  v-if="authStore.isProvider" color="success" rounded="xl" variant="elevated" class="mb-6">
                 Create
             </v-btn>
         </v-card>

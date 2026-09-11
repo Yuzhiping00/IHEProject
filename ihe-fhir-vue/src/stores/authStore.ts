@@ -1,9 +1,16 @@
 import {defineStore} from 'pinia'
 
+interface AuthUser {
+    id:string,
+    email:string,
+    role:string,
+    patientId?: number | null,
+}
+
 export const useAuthStore = defineStore('auth', {
     state: () => ({
-        user: null,
-        token: localStorage.getItem("token") || null,
+        user: null as AuthUser | null,
+        token: localStorage.getItem("token") as string || null,
     }),
 
     actions: {
@@ -19,17 +26,19 @@ export const useAuthStore = defineStore('auth', {
         clearAuth() {
             this.user = null
             this.token = null
+            localStorage.removeItem("token")
         },
 
         logout() {
-            this.token = null;
-            localStorage.removeItem('token')
+             this.clearAuth()
         }
     },
 
     getters: {
-        isAuthenticated : (state) => !!state.token
+        isAuthenticated : (state) => !!state.token,
 
+        isProvider: (state) => state.user?.role === 'provider',
+
+        isPatient: (state) => state.user?.role === 'patient',
     }
-
 });
