@@ -37,8 +37,8 @@ export const useAuthStore = defineStore('auth', {
     getters: {
         isAuthenticated : (state) => !!state.token,
 
-        isProvider: (state) => state.user?.role === 'provider',
+        isProvider: (state) => state.user?.role === 'Provider',
 
-        isPatient: (state) => state.user?.role === 'patient',
+        isPatient: (state) => state.user?.role === 'Patient',
     }
 });

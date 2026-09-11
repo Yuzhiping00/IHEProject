@@ -54,9 +54,9 @@ namespace FHIR_IHE_API
                     ValidateIssuerSigningKey = true,
                     ValidIssuer = builder.Configuration["Jwt:Issuer"],
                     ValidAudience = builder.Configuration["Jwt:Audience"],
-                    IssuerSigningKey =
-                        new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
-                            System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]!))
+                    IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]!)),
+                    //maximum tolerance for the expiration date of the token. If the token is expired by more than this value, it will be rejected.
+                    ClockSkew = TimeSpan.FromMinutes(1)
                 };
             });
 
