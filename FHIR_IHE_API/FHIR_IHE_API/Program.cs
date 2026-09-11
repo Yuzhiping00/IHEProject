@@ -1,6 +1,7 @@
 using FHIR_IHE_API.Data;
-using Hl7.Fhir.Rest;
+using FHIR_IHE_API.Data.Models.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace FHIR_IHE_API
@@ -11,8 +12,9 @@ namespace FHIR_IHE_API
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
-            // Add DbContext with PostgreSQL
+            // ----------------------------------------
+            // Database
+            // ----------------------------------------
 
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
             {
@@ -20,7 +22,27 @@ namespace FHIR_IHE_API
 
             });
 
-            builder.Services.AddControllers().AddNewtonsoftJson();
+            // ----------------------------------------
+            // ASP.NET Core Identity
+            // ----------------------------------------
+
+            builder.Services.AddIdentityCore<ApplicationUser>(options =>
+                {
+                    options.Password.RequireDigit = true;
+                    options.Password.RequireLowercase = true;
+                    options.Password.RequireUppercase = true;
+                    options.Password.RequireNonAlphanumeric = true;
+                    options.Password.RequiredLength = 8;
+
+                    options.User.RequireUniqueEmail = true;
+                })
+                .AddRoles<IdentityRole>()
+                .AddEntityFrameworkStores<ApplicationDbContext>()
+                .AddSignInManager();
+
+            // ----------------------------------------
+            // JWT Authentication
+            // ----------------------------------------
 
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
             {
@@ -38,11 +60,31 @@ namespace FHIR_IHE_API
                 };
             });
 
+            // ----------------------------------------
+            // Authorization
+            // ----------------------------------------
+
             builder.Services.AddAuthorization();
+
+
+            // ----------------------------------------
+            // Controllers
+            // ----------------------------------------
+
+            builder.Services.AddControllers().AddNewtonsoftJson();
+
+            // ----------------------------------------
+            // Swagger
+            // ----------------------------------------
+
 
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
+
+            // ----------------------------------------
+            // CORS
+            // ----------------------------------------
 
             builder.Services.AddCors(options =>
             {
@@ -55,12 +97,20 @@ namespace FHIR_IHE_API
 
             var app = builder.Build();
 
+            // ----------------------------------------
+            // Development tools
+            // ----------------------------------------
+
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
+
+            // ----------------------------------------
+            // Middleware
+            // ----------------------------------------
 
             app.UseCors("AllowVueApp");
 
