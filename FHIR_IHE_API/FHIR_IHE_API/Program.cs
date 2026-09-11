@@ -64,7 +64,23 @@ namespace FHIR_IHE_API
             // Authorization
             // ----------------------------------------
 
-            builder.Services.AddAuthorization();
+            builder.Services.AddAuthorization(options =>
+            {
+                options.AddPolicy("ProviderOnly", policy =>
+                {
+                    policy.RequireRole("Provider");
+                });
+
+                options.AddPolicy("PatientOnly", policy =>
+                {
+                    policy.RequireRole("Patient");
+                });
+
+                options.AddPolicy("ProviderOrPatient", policy =>
+                {
+                    policy.RequireRole("Provider", "Patient");
+                });
+            });
 
 
             // ----------------------------------------

@@ -29,7 +29,7 @@ namespace FHIR_IHE_API.Controllers
 
 
         //GET: api/patient
-        [Authorize(Roles = "Provider")]
+        [Authorize(Policy = "ProviderOnly")]
         [HttpGet]
         public async Task<IActionResult> GetAllPatients()
         {
@@ -39,7 +39,7 @@ namespace FHIR_IHE_API.Controllers
             return new FhirResult(bundle);
         }
 
-        [Authorize(Roles = "Provider")]
+        [Authorize(Policy = "ProviderOnly")]
         [HttpPost("create")]
         public async Task<ActionResult> CreatePatient([FromBody] PatientModel patientModel)
         {
@@ -68,6 +68,7 @@ namespace FHIR_IHE_API.Controllers
         }
 
         //GET: api/patient/10ea202e-5787-46b3-8ef0-377963babfad
+        [Authorize(Policy = "ProviderOrPatient")]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetPatient(string id)
         {
@@ -86,7 +87,7 @@ namespace FHIR_IHE_API.Controllers
         }
 
         // PUT: api/patient/id/update
-        [Authorize(Roles = "Provider")]
+        [Authorize(Policy = "ProviderOnly")]
         [HttpPut("{id}/update")]
         public async Task<IActionResult> PutPatient(string id, [FromBody] PatientModel? updatedPatient)
         {
@@ -125,7 +126,7 @@ namespace FHIR_IHE_API.Controllers
         }
 
         //DELETE: api/patient/5
-        [Authorize(Roles = "Provider")]
+        [Authorize(Policy = "ProviderOnly")]
         [HttpDelete("delete/{id}")]
         public async Task<IActionResult> DeletePatient(string id)
         {
