@@ -87,7 +87,7 @@ namespace FHIR_IHE_API.Controllers
             {
                 id = user.Id,
                 email = user.Email,
-                role = role,
+                role,
                 patientId = user.PatientId
             };
 
@@ -100,15 +100,15 @@ namespace FHIR_IHE_API.Controllers
 
             var claims = new List<Claim>
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+                new(JwtRegisteredClaimNames.Sub, user.Id),
 
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
+                new(ClaimTypes.NameIdentifier, user.Id),
 
-                new Claim(ClaimTypes.Name, user.Email ?? ""),
+                new (ClaimTypes.Name, user.Email ?? ""),
 
-                new Claim(ClaimTypes.Email, user.Email ?? ""),
+                new (ClaimTypes.Email, user.Email ?? ""),
 
-                new Claim(ClaimTypes.Role, role)
+                new (ClaimTypes.Role, role)
             };
 
             if (user.PatientId.HasValue)

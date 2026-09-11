@@ -1,38 +1,35 @@
-using System.Text.Json;
 using FHIR_IHE_API.Data;
 using FHIR_IHE_API.Mapper;
 using FHIR_IHE_API.Models;
 using Hl7.Fhir.Model;
-using Hl7.Fhir.Rest;
 using Hl7.Fhir.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.SqlServer.Query.Internal;
 using FHIRPatient = Hl7.Fhir.Model.Patient;
-using Patient = FHIR_IHE_API.Models.Patient;
 
 namespace FHIR_IHE_API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    //[Authorize]
+    [Authorize]
     public class PatientController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        private readonly FhirJsonParser  _parser = new FhirJsonParser();
+        private readonly FhirJsonParser _parser = new FhirJsonParser();
         private readonly FhirJsonSerializer _serializer = new FhirJsonSerializer();
         private readonly ILogger<PatientController> _logger;
 
         // Injecting database in constructor
         public PatientController(ApplicationDbContext context, ILogger<PatientController> logger)
         {
-           _context = context;
-           _logger = logger;
+            _context = context;
+            _logger = logger;
         }
 
 
         //GET: api/patient
+        [Authorize(Roles = "Provider")]
         [HttpGet]
         public async Task<IActionResult> GetAllPatients()
         {
@@ -42,9 +39,9 @@ namespace FHIR_IHE_API.Controllers
             return new FhirResult(bundle);
         }
 
-
+        [Authorize(Roles = "Provider")]
         [HttpPost("create")]
-        public async Task<ActionResult> CreatePatient([FromBody]PatientModel patientModel)
+        public async Task<ActionResult> CreatePatient([FromBody] PatientModel patientModel)
         {
 
             try
@@ -64,8 +61,8 @@ namespace FHIR_IHE_API.Controllers
             }
             catch (Exception ex)
             {
-               // return BadRequest(ex.Message);
-               return BadRequest(new { error = ex.Message });
+                // return BadRequest(ex.Message);
+                return BadRequest(new { error = ex.Message });
             }
 
         }
@@ -73,7 +70,7 @@ namespace FHIR_IHE_API.Controllers
         //GET: api/patient/10ea202e-5787-46b3-8ef0-377963babfad
         [HttpGet("{id}")]
         public async Task<IActionResult> GetPatient(string id)
-        { 
+        {
             var entity = await _context.Patients.FirstOrDefaultAsync(p => p.FhirId == id);
 
             if (entity == null)
@@ -89,6 +86,7 @@ namespace FHIR_IHE_API.Controllers
         }
 
         // PUT: api/patient/id/update
+        [Authorize(Roles = "Provider")]
         [HttpPut("{id}/update")]
         public async Task<IActionResult> PutPatient(string id, [FromBody] PatientModel? updatedPatient)
         {
@@ -112,7 +110,7 @@ namespace FHIR_IHE_API.Controllers
 
             if (entity == null)
             {
-                return NotFound(); 
+                return NotFound();
             }
 
             PatientMapper.UpdateEntity(entity, updatedPatient, id);
@@ -127,6 +125,7 @@ namespace FHIR_IHE_API.Controllers
         }
 
         //DELETE: api/patient/5
+        [Authorize(Roles = "Provider")]
         [HttpDelete("delete/{id}")]
         public async Task<IActionResult> DeletePatient(string id)
         {
