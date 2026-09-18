@@ -168,5 +168,29 @@ namespace FHIR_IHE_API.Controllers
             return NoContent();
         }
 
+        [Authorize(Policy = "PatientOnly")]
+        [HttpGet("me")]
+        public async Task<IActionResult> GetMyPatient()
+        {
+            var patientIdClaim = User.FindFirst("patientId")?.Value;
+
+            if (!int.TryParse(patientIdClaim, out var patientId))
+            {
+                return Forbid();
+            }
+
+            var entity = await _context.Patients
+                .FirstOrDefaultAsync(p => p.Id == patientId);
+
+            if (entity == null)
+            {
+                return NotFound();
+            }
+
+            var fhirPatient = PatientMapper.ToFhirFromEntity(entity);
+
+            return new FhirResult(fhirPatient);
+        }
+
     }
 }

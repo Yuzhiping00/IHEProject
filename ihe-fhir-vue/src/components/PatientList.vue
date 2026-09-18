@@ -42,6 +42,15 @@ const clickedDelete = (patient: Patient) => {
     deleteDialog.value = true
 }
 
+const viewPatient = (patient: Patient) => {
+    router.push({
+        name:"PatientInformation",
+        query: {
+            id: patient.id
+        }
+    })
+}
+
 // handle delete action
 const confirmDeletePatient = async () => {
     isLoading.value = true
@@ -136,6 +145,9 @@ const createPatient = () => {
                         </v-btn>
                         <v-btn v-if="authStore.isProvider" color="red" class="ma-2" @click="clickedDelete(item)">
                             <v-icon>mdi-delete</v-icon>
+                        </v-btn>
+                        <v-btn color="primary" @click="viewPatient(item)">
+                            <v-icon>mdi-account</v-icon>
                         </v-btn>
                     </td>
                 </template>

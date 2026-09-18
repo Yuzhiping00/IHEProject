@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import PatientCreate from "@/components/PatientCreate.vue";
 import NotFound from "@/views/NotFound.vue";
 import PatientList from "@/components/PatientList.vue";
+import PatientInformation from "@/components/PatientInformation.vue";
 import Login from "@/components/Login.vue";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -10,6 +11,16 @@ const routes = [
     path: "/",
     name: "Login",
     component: Login,
+  },
+
+   {
+    path: "/patients",
+    name: "PatientList",
+    component: PatientList,
+    meta: {
+      requireAuth: true,
+      role: "Provider",
+    },
   },
 
   {
@@ -23,13 +34,12 @@ const routes = [
   },
 
   {
-    path: "/patients",
-    name: "PatientList",
-    component: PatientList,
+    path:"/patient-information",
+    name:"PatientInformation",
+    component: PatientInformation,
     meta: {
       requireAuth: true,
-      role: "Provider",
-    },
+    }
   },
 
   {
@@ -65,7 +75,7 @@ router.beforeEach((to) => {
   }
 
   return true
-  
+
 });
 
 export default router;
