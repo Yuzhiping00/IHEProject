@@ -3,8 +3,9 @@ import PatientCreate from "@/components/PatientCreate.vue";
 import NotFound from "@/views/NotFound.vue";
 import PatientList from "@/components/PatientList.vue";
 import PatientInformation from "@/components/PatientInformation.vue";
+import ChangePassword from "@/components/ChangePassword.vue";
 import Login from "@/components/Login.vue";
-import { useAuthStore } from "@/stores/authStore";
+import { useAuthStore } from "@/stores/authStore";  
 
 const routes = [
   {
@@ -39,6 +40,16 @@ const routes = [
     component: PatientInformation,
     meta: {
       requireAuth: true,
+    }
+  },
+
+  {
+    path:"/change-password",
+    name:"ChangePassword",
+    component: ChangePassword,
+    meta: {
+      requireAuth: true,
+      role:"Patient"
     }
   },
 

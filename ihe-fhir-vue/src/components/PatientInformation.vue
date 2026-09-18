@@ -109,7 +109,7 @@ const changePassword = () => {
       </v-card-text>
 
       <v-card-actions>
-        <v-btn @click="goBack"> Back </v-btn>
+        <v-btn @click="goBack" color="error"> Back </v-btn>
       </v-card-actions>
     </v-card>
   </v-container>

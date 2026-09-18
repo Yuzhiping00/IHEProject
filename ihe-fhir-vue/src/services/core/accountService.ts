@@ -16,13 +16,24 @@ class AccountService extends AxiosService {
    */
   basePath: string = "account";
 
-
   /**
    * Logs a user in given they provide the correct email and password
    */
   loginAsync(data: object): Promise<AxiosResponse<any>> {
     return this.axios
       .post<any>(`${this.rootPath}/login`, data)
+      .catch(this.genericErrorHandler);
+  }
+
+  changePassword(
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<AxiosResponse<any>> {
+    return this.axios
+      .post<any>(`${this.rootPath}/change-password`, {
+        currentPassword,
+        newPassword,
+      })
       .catch(this.genericErrorHandler);
   }
 }
