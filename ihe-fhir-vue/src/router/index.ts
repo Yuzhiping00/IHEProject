@@ -44,7 +44,7 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to) => {
   const authStore = useAuthStore();
 
   // ----------------------------------------
@@ -52,11 +52,7 @@ router.beforeEach((to, from, next) => {
   // ----------------------------------------
 
   if (to.meta.requireAuth && !authStore.isAuthenticated) {
-    next({
-      name: "Login",
-    });
-
-    return;
+    return {name: "Login"}
   }
 
   // ----------------------------------------
@@ -64,14 +60,12 @@ router.beforeEach((to, from, next) => {
   // ----------------------------------------
 
   if (to.meta.role && authStore.user?.role !== to.meta.role) {
-    next({
-      name: "NotFound",
-    });
 
-    return;
+    return {name: "NotFound"}
   }
 
-  next();
+  return true
+  
 });
 
 export default router;

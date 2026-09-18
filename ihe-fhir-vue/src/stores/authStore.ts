@@ -9,13 +9,14 @@ interface AuthUser {
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({
-        user: null as AuthUser | null,
+        user: JSON.parse(localStorage.getItem("user") || "null") as AuthUser | null,
         token: localStorage.getItem("token") as string || null,
     }),
 
     actions: {
         setUser (userData : any) {
             this.user = userData
+            localStorage.setItem("user", JSON.stringify(userData))
         },
 
         setToken(token : any) {
@@ -27,6 +28,7 @@ export const useAuthStore = defineStore('auth', {
             this.user = null
             this.token = null
             localStorage.removeItem("token")
+            localStorage.removeItem("user")
         },
 
         logout() {
