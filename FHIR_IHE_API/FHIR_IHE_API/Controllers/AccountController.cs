@@ -74,12 +74,60 @@ namespace FHIR_IHE_API.Controllers
 
             var roles = await _userManager.GetRolesAsync(user);
 
-            var role = roles.FirstOrDefault();
+            var isPatient = roles.Contains(ApplicationRoles.PatientRole);
+            var isProvider = roles.Contains(ApplicationRoles.ProviderRole);
 
-            if (role == null)
+            // ----------------------------------------
+            // Validate Patient identity
+            // ----------------------------------------
+
+            if (isPatient)
             {
-                return Unauthorized("User has no assigned role");
+                if (!user.PatientId.HasValue)
+                {
+                    throw new InvalidOperationException(
+                        "Patient user must have a PatientId.");
+                }
+
+                if (user.ProviderId.HasValue)
+                {
+                    throw new InvalidOperationException(
+                        "Patient user must not have a ProviderId.");
+                }
             }
+
+            // ----------------------------------------
+            // Validate Provider identity
+            // ----------------------------------------
+
+            if (isProvider)
+            {
+                if (!user.ProviderId.HasValue)
+                {
+                    throw new InvalidOperationException(
+                        "Provider user must have a ProviderId.");
+                }
+
+                if (user.PatientId.HasValue)
+                {
+                    throw new InvalidOperationException(
+                        "Provider user must not have a PatientId.");
+                }
+            }
+
+            // ----------------------------------------
+            // Validate user role
+            // ----------------------------------------
+
+            switch (roles.Count)
+            {
+                case 0:
+                    return Unauthorized("User has no assigned role");
+                case > 1:
+                    return Unauthorized("User has multiple assigned roles");
+            }
+
+            var role = roles[0];
 
             // ----------------------------------------
             // Generate JWT
@@ -102,7 +150,8 @@ namespace FHIR_IHE_API.Controllers
                 id = user.Id,
                 email = user.Email,
                 role,
-                patientId = user.PatientId
+                patientId = user.PatientId,
+                providerId = user.ProviderId
             };
 
             return Ok(new { token, user = responseUser });
@@ -118,17 +167,34 @@ namespace FHIR_IHE_API.Controllers
 
                 new(ClaimTypes.NameIdentifier, user.Id),
 
-                new (ClaimTypes.Name, user.Email ?? ""),
+                new (ClaimTypes.Name, user.Email ?? string.Empty),
 
-                new (ClaimTypes.Email, user.Email ?? ""),
+                new (ClaimTypes.Email, user.Email ?? string.Empty),
 
                 new (ClaimTypes.Role, role)
             };
 
+            // ----------------------------------------
+            // Add Patient identity claim
+            // ----------------------------------------
+
             if (user.PatientId.HasValue)
             {
-                claims.Add(new Claim("patientId", user.PatientId.Value.ToString()));
+                claims.Add(new Claim(ApplicationClaimTypes.PatientId, user.PatientId.Value.ToString()));
             }
+
+            // ----------------------------------------
+            // Add Provider identity claim
+            // ----------------------------------------
+
+            if (user.ProviderId.HasValue)
+            {
+                claims.Add(new Claim(ApplicationClaimTypes.ProviderId, user.ProviderId.Value.ToString()));
+            }
+
+            // ----------------------------------------
+            // JWT configuration
+            // ----------------------------------------
 
             var secret = _configuration["Jwt:Secret"];
 

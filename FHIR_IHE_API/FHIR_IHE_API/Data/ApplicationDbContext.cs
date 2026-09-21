@@ -38,13 +38,13 @@ namespace FHIR_IHE_API.Data
             });
 
             modelBuilder.Entity<ApplicationUser>()
-                .HasOne<Patient>()
+                .HasOne(u => u.Patient)
                 .WithMany()
                 .HasForeignKey(u => u.PatientId)
                 .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<ApplicationUser>()
-                .HasOne<Provider>()
+                .HasOne(u => u.Provider)
                 .WithMany()
                 .HasForeignKey(u => u.ProviderId)
                 .OnDelete(DeleteBehavior.SetNull);
