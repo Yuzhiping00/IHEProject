@@ -35,7 +35,28 @@ namespace FHIR_IHE_API.Identity
             }
 
             // ----------------------------------------
-            // 2. Create Provider user
+            // 2. Create Provider record
+            // ----------------------------------------
+            var providerRecord = await context.Providers
+                .FirstOrDefaultAsync(p => p.ProviderNumber == "PRV-001");
+
+            if (providerRecord == null)
+            {
+                providerRecord = new Provider
+                {
+                    GivenName = "John",
+                    FamilyName = "Smith",
+                    ProviderNumber = "PRV-001"
+                };
+
+                context.Providers.Add(providerRecord);
+
+                await context.SaveChangesAsync();
+            }
+
+
+            // ----------------------------------------
+            // 3. Create Provider user
             // ----------------------------------------
 
             var providerEmail = "doctor@example.com";
@@ -48,7 +69,8 @@ namespace FHIR_IHE_API.Identity
                 {
                     UserName = providerEmail,
                     Email = providerEmail,
-                    EmailConfirmed = true
+                    EmailConfirmed = true,
+                    ProviderId = providerRecord.Id
                 };
 
                 var result = await userManager.CreateAsync(provider, "Provider123!");
@@ -61,9 +83,15 @@ namespace FHIR_IHE_API.Identity
 
                 await userManager.AddToRoleAsync(provider, "Provider");
             }
+            else if (provider.ProviderId != providerRecord.Id)
+            {
+                provider.ProviderId = providerRecord.Id;
+
+                await userManager.UpdateAsync(provider);
+            }
 
             // ----------------------------------------
-            // 3. Create a Patient record
+            // 4. Create a Patient record
             // ----------------------------------------
 
             var patient = await context.Patients.FirstOrDefaultAsync(p => p.FhirId == "seed-patient-001");
@@ -86,7 +114,7 @@ namespace FHIR_IHE_API.Identity
             }
 
             // ----------------------------------------
-            // 4. Create Patient user
+            // 5. Create Patient user
             // ----------------------------------------
 
             var patientEmail = "patient@example.com";

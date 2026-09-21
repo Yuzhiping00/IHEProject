@@ -11,6 +11,8 @@ namespace FHIR_IHE_API.Data
         public DbSet<Patient> Patients { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
 
+        public DbSet<Provider> Providers { get; set; }
+
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {
         }
@@ -39,6 +41,12 @@ namespace FHIR_IHE_API.Data
                 .HasOne<Patient>()
                 .WithMany()
                 .HasForeignKey(u => u.PatientId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ApplicationUser>()
+                .HasOne<Provider>()
+                .WithMany()
+                .HasForeignKey(u => u.ProviderId)
                 .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<AuditLog>(entity =>

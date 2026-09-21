@@ -5,5 +5,7 @@ namespace FHIR_IHE_API.Identity
     public class ApplicationUser : IdentityUser
     {
         public int? PatientId { get; set; }
+
+        public int? ProviderId { get; set; }
     }
 }
