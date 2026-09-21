@@ -1,6 +1,7 @@
 
 using FHIR_IHE_API.Identity;
 using FHIR_IHE_API.Models;
+using FHIR_IHE_API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -20,11 +21,14 @@ namespace FHIR_IHE_API.Controllers
 
         private readonly IConfiguration _configuration;
 
+        private readonly AuditService _auditService;
+
         // Injecting database in constructor
-        public AccountController(UserManager<ApplicationUser> userManager, IConfiguration configuration)
+        public AccountController(UserManager<ApplicationUser> userManager, IConfiguration configuration, AuditService auditService)
         {
             _userManager = userManager;
             _configuration = configuration;
+            _auditService = auditService;
         }
 
         //POST: api/account/login
@@ -36,8 +40,10 @@ namespace FHIR_IHE_API.Controllers
             if (string.IsNullOrWhiteSpace(loginRequest.Email) ||
                 string.IsNullOrWhiteSpace(loginRequest.Password))
             {
+                await _auditService.LogAsync(HttpContext, "LOGIN_FAILED", "Authentication", loginRequest.Email,
+                    StatusCodes.Status401Unauthorized);
                 return Unauthorized(
-                    "Invalid email or password.");
+                    "Invalid email or password. Please try again");
             }
 
             // ----------------------------------------
@@ -84,6 +90,12 @@ namespace FHIR_IHE_API.Controllers
             // ----------------------------------------
             // Return user information
             // ----------------------------------------
+
+            // ----------------------------------------
+            // Audit successful login
+            // ----------------------------------------
+            await _auditService.LogAsync(HttpContext, "LOGIN_SUCCESS", "Authentication", loginRequest.Email,
+                StatusCodes.Status200OK);
 
             var responseUser = new
             {

@@ -3,6 +3,7 @@ using System;
 using FHIR_IHE_API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FHIR_IHE_API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260918211155_AddAuditLogs")]
+    partial class AddAuditLogs
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -100,32 +103,25 @@ namespace FHIR_IHE_API.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
                     b.Property<string>("Action")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("text");
 
                     b.Property<string>("HttpMethod")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                        .HasColumnType("text");
 
                     b.Property<string>("IpAddress")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("text");
 
                     b.Property<string>("RequestPath")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
+                        .HasColumnType("text");
 
                     b.Property<string>("ResourceId")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<string>("ResourceType")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Role")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("text");
 
                     b.Property<int>("StatusCode")
                         .HasColumnType("integer");
@@ -137,12 +133,10 @@ namespace FHIR_IHE_API.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("UserEmail")
-                        .HasMaxLength(320)
-                        .HasColumnType("character varying(320)");
+                        .HasColumnType("text");
 
                     b.Property<string>("UserId")
-                        .HasMaxLength(450)
-                        .HasColumnType("character varying(450)");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 

@@ -1,5 +1,7 @@
 using FHIR_IHE_API.Data;
 using FHIR_IHE_API.Identity;
+using FHIR_IHE_API.Middleware;
+using FHIR_IHE_API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +23,12 @@ namespace FHIR_IHE_API
                 options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
 
             });
+
+            // ----------------------------------------
+            // Audit service
+            // ----------------------------------------
+
+            builder.Services.AddScoped<AuditService>();
 
             // ----------------------------------------
             // ASP.NET Core Identity
@@ -140,6 +148,12 @@ namespace FHIR_IHE_API
             //app.UseHttpsRedirection();
 
             app.UseAuthentication();
+
+            // ----------------------------------------
+            // Audit
+            // ----------------------------------------
+
+            app.UseMiddleware<AuditMiddleware>();
 
             app.UseAuthorization();
 
