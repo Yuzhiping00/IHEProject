@@ -1,4 +1,5 @@
 ﻿using FHIR_IHE_API.Data;
+using FHIR_IHE_API.Identity;
 using FHIR_IHE_API.Models;
 using System.Security.Claims;
 
@@ -25,19 +26,31 @@ namespace FHIR_IHE_API.Services
                 // Get authenticated user information
                 // ----------------------------------------
 
-                var userId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var user = httpContext.User;
 
-                var email = httpContext.User.FindFirst(ClaimTypes.Email)?.Value;
+                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
 
-                // Your current JWT uses ClaimTypes.Name, 
-                // so use it as a fallback
+                var email = user.FindFirstValue(ClaimTypes.Email) ?? user.FindFirstValue(ClaimTypes.Name);
 
-                if (string.IsNullOrWhiteSpace(email))
+
+                var role = user.FindFirstValue(ClaimTypes.Role);
+
+                var patientIdClaim = user.FindFirstValue(ApplicationClaimTypes.PatientId);
+
+                var providerIdClaim = user.FindFirstValue(ApplicationClaimTypes.ProviderId);
+
+                int? patientId = null;
+                int? providerId = null;
+
+                if (int.TryParse(patientIdClaim, out var parsedPatientId))
                 {
-                    email = httpContext.User.FindFirst(ClaimTypes.Name)?.Value;
+                    patientId = parsedPatientId;
                 }
 
-                var role = httpContext.User.FindFirst(ClaimTypes.Role)?.Value;
+                if (int.TryParse(providerIdClaim, out var parsedProviderId))
+                {
+                    providerId = parsedProviderId;
+                }
 
                 // ----------------------------------------
                 // Determine status code
@@ -55,13 +68,17 @@ namespace FHIR_IHE_API.Services
                     UserId = userId,
                     UserEmail = email,
                     Role = role,
+                    PatientId = patientId,
+                    ProviderId = providerId,
+
                     Action = action,
                     ResourceType = resourceType,
                     ResourceId = resourceId,
                     HttpMethod = httpContext.Request.Method,
-                    RequestPath = httpContext.Request.Path.Value,
+                    RequestPath = httpContext.Request.Path,
+
                     StatusCode = finalStatusState,
-                    Success = finalStatusState >= 200 && finalStatusState <= 400,
+                    Success = finalStatusState is >= 200 and < 300,
                     IpAddress = httpContext.Connection.RemoteIpAddress?.ToString(),
                     TimestampUtc = DateTime.UtcNow
                 };

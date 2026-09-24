@@ -18,13 +18,17 @@ namespace FHIR_IHE_API.Models
         // Provider / Patient / etc.
         public string? Role { get; set; }
 
+        public int? PatientId { get; set; }
+
+        public int? ProviderId { get; set; }
+
         // What happened.
         // Examples:
         // GET
         // POST
         // LOGIN_SUCCESS
         // LOGIN_FAILED
-        public string? Action { get; set; }
+        public string Action { get; set; } = string.Empty;
 
         // The type of resource being accessed.
         // Example: Patient
