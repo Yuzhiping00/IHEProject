@@ -42,8 +42,7 @@ namespace FHIR_IHE_API.Controllers
             {
                 await _auditService.LogAsync(HttpContext, "LOGIN_FAILED", "Authentication", loginRequest.Email,
                     StatusCodes.Status401Unauthorized);
-                return Unauthorized(
-                    "Invalid email or password. Please try again");
+                return Unauthorized("Invalid email or password. Please try again");
             }
 
             // ----------------------------------------

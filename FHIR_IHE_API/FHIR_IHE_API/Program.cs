@@ -24,11 +24,15 @@ namespace FHIR_IHE_API
 
             });
 
+            builder.Services.AddHttpContextAccessor();
+
+
             // ----------------------------------------
             // Audit service
             // ----------------------------------------
 
             builder.Services.AddScoped<AuditService>();
+            builder.Services.AddScoped<PatientAuthorizationService>();
 
             // ----------------------------------------
             // ASP.NET Core Identity
@@ -76,18 +80,27 @@ namespace FHIR_IHE_API
             {
                 options.AddPolicy("ProviderOnly", policy =>
                 {
-                    policy.RequireRole("Provider");
+                    policy.RequireRole(ApplicationRoles.ProviderRole);
                 });
 
                 options.AddPolicy("PatientOnly", policy =>
                 {
-                    policy.RequireRole("Patient");
+                    policy.RequireRole(ApplicationRoles.PatientRole);
                 });
 
                 options.AddPolicy("ProviderOrPatient", policy =>
                 {
-                    policy.RequireRole("Provider", "Patient");
+                    // We passed multiple roles, either of role works
+                    policy.RequireRole(ApplicationRoles.ProviderRole, ApplicationRoles.PatientRole);
                 });
+
+                // do not write because it requires both patient and provider roles 
+
+                /*options.AddPolicy("PatientOrProvider", policy =>
+                {
+                    policy.RequireRole(ApplicationRoles.PatientRole);
+                    policy.RequireRole(ApplicationRoles.ProviderRole);
+                });*/
             });
 
 

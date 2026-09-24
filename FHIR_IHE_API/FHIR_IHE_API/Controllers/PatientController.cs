@@ -1,6 +1,7 @@
 using FHIR_IHE_API.Data;
 using FHIR_IHE_API.Mapper;
 using FHIR_IHE_API.Models;
+using FHIR_IHE_API.Services;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Serialization;
 using Microsoft.AspNetCore.Authorization;
@@ -19,12 +20,14 @@ namespace FHIR_IHE_API.Controllers
         private readonly FhirJsonParser _parser = new FhirJsonParser();
         private readonly FhirJsonSerializer _serializer = new FhirJsonSerializer();
         private readonly ILogger<PatientController> _logger;
+        private readonly PatientAuthorizationService _patientAuthorizationService;
 
         // Injecting database in constructor
-        public PatientController(ApplicationDbContext context, ILogger<PatientController> logger)
+        public PatientController(ApplicationDbContext context, ILogger<PatientController> logger, PatientAuthorizationService patientAuthorizationService)
         {
             _context = context;
             _logger = logger;
+            _patientAuthorizationService = patientAuthorizationService;
         }
 
 
@@ -67,7 +70,8 @@ namespace FHIR_IHE_API.Controllers
 
         }
 
-        //GET: api/patient/10ea202e-5787-46b3-8ef0-377963babfad
+        // GET: api/patient/10ea202e-5787-46b3-8ef0-377963babfad
+        // patient a can only access their own data, not patient b's. => ownership / resource authorization
         [Authorize(Policy = "ProviderOrPatient")]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetPatient(string id)
@@ -79,36 +83,14 @@ namespace FHIR_IHE_API.Controllers
                 return NotFound();
             }
 
-            // ----------------------------------------
-            // Provider can access any patient
-            // ----------------------------------------
-
-            if (User.IsInRole("Provider"))
-            {
-                var fhirPatient = PatientMapper.ToFhirFromEntity(entity);
-
-                return new FhirResult(fhirPatient);
-            }
-
-            // ----------------------------------------
-            // Patient can access only their own record
-            // ----------------------------------------
-
-            var patientIdClaim = User.FindFirst("patientId")?.Value;
-
-            if (!int.TryParse(patientIdClaim, out var currentPatientId))
+            if (!_patientAuthorizationService.CanAccessPatient(entity.Id))
             {
                 return Forbid();
             }
 
-            if (entity.Id != currentPatientId)
-            {
-                return Forbid();
-            }
+            var fhirPatient = PatientMapper.ToFhirFromEntity(entity);
 
-            var ownPatient = PatientMapper.ToFhirFromEntity(entity);
-
-            return new FhirResult(ownPatient);
+            return new FhirResult(fhirPatient);
         }
 
         // PUT: api/patient/id/update
@@ -172,15 +154,15 @@ namespace FHIR_IHE_API.Controllers
         [HttpGet("me")]
         public async Task<IActionResult> GetMyPatient()
         {
-            var patientIdClaim = User.FindFirst("patientId")?.Value;
+            var patientId = _patientAuthorizationService.GetCurrentPatientId();
 
-            if (!int.TryParse(patientIdClaim, out var patientId))
+            if (!patientId.HasValue)
             {
                 return Forbid();
             }
 
             var entity = await _context.Patients
-                .FirstOrDefaultAsync(p => p.Id == patientId);
+                .FirstOrDefaultAsync(p => p.Id == patientId.Value);
 
             if (entity == null)
             {
