@@ -22,6 +22,11 @@ namespace FHIR_IHE_API.Models
 
         public int? ProviderId { get; set; }
 
+        // ----------------------------------------
+        // Target resource
+        // ----------------------------------------
+        public int? TargetPatientId { get; set; }
+
         // What happened.
         // Examples:
         // GET

@@ -10,6 +10,7 @@ namespace FHIR_IHE_API.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<AuditService> _logger;
+        public const string AuditAlreadyLoggedKey = "AuditAlreadyLogged";
 
         public AuditService(ApplicationDbContext context, ILogger<AuditService> logger)
         {
@@ -35,7 +36,8 @@ namespace FHIR_IHE_API.Services
 
                 var userId = applicationUser?.Id ?? user.FindFirstValue(ClaimTypes.NameIdentifier);
 
-                var email = applicationUser?.Email ?? user.FindFirstValue(ClaimTypes.Email) ?? user.FindFirstValue(ClaimTypes.Name);
+                var email = applicationUser?.Email ??
+                            user.FindFirstValue(ClaimTypes.Email) ?? user.FindFirstValue(ClaimTypes.Name);
 
                 var role = explicitRole ?? user.FindFirstValue(ClaimTypes.Role);
 
@@ -111,10 +113,100 @@ namespace FHIR_IHE_API.Services
 
                 _context.AuditLogs.Add(auditing);
                 await _context.SaveChangesAsync();
+                // Mark that the audit has been logged for this request
+                httpContext.Items[AuditAlreadyLoggedKey] = true;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to write audit log!");
+            }
+        }
+
+        public async Task LogPatientAccessAsync(
+            HttpContext httpContext,
+            string action,
+            int targetPatientId,
+            string? resourceId = null,
+            int? statusCode = null)
+        {
+            try
+            {
+                var user = httpContext.User;
+
+                var userId =
+                    user.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                var email =
+                    user.FindFirstValue(ClaimTypes.Email)
+                    ?? user.FindFirstValue(ClaimTypes.Name);
+
+                var role =
+                    user.FindFirstValue(ClaimTypes.Role);
+
+                int? actorPatientId = null;
+
+                var patientIdClaim =
+                    user.FindFirstValue(ApplicationClaimTypes.PatientId);
+
+                if (int.TryParse(patientIdClaim, out var parsedPatientId))
+                {
+                    actorPatientId = parsedPatientId;
+                }
+
+                int? providerId = null;
+
+                var providerIdClaim =
+                    user.FindFirstValue(ApplicationClaimTypes.ProviderId);
+
+                if (int.TryParse(providerIdClaim, out var parsedProviderId))
+                {
+                    providerId = parsedProviderId;
+                }
+
+                var finalStatusCode =
+                    statusCode ?? httpContext.Response.StatusCode;
+
+                var auditing = new AuditLog
+                {
+                    UserId = userId,
+                    UserEmail = email,
+                    Role = role,
+
+                    // Actor identity
+                    PatientId = actorPatientId,
+                    ProviderId = providerId,
+
+                    // Target
+                    TargetPatientId = targetPatientId,
+
+                    // Target resource
+                    ResourceType = "Patient",
+                    ResourceId = resourceId,
+
+                    Action = action,
+
+                    HttpMethod = httpContext.Request.Method,
+                    RequestPath = httpContext.Request.Path,
+
+                    StatusCode = finalStatusCode,
+                    Success = finalStatusCode >= 200 && finalStatusCode < 300,
+
+                    IpAddress =
+                        httpContext.Connection.RemoteIpAddress?.ToString(),
+
+                    TimestampUtc = DateTime.UtcNow
+                };
+
+                _context.AuditLogs.Add(auditing);
+
+                await _context.SaveChangesAsync();
+                httpContext.Items[AuditAlreadyLoggedKey] = true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Failed to write patient audit log.");
             }
         }
     }

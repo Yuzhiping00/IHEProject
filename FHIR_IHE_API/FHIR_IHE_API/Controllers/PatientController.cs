@@ -21,13 +21,15 @@ namespace FHIR_IHE_API.Controllers
         private readonly FhirJsonSerializer _serializer = new FhirJsonSerializer();
         private readonly ILogger<PatientController> _logger;
         private readonly PatientAuthorizationService _patientAuthorizationService;
+        private readonly AuditService _auditService;
 
         // Injecting database in constructor
-        public PatientController(ApplicationDbContext context, ILogger<PatientController> logger, PatientAuthorizationService patientAuthorizationService)
+        public PatientController(ApplicationDbContext context, ILogger<PatientController> logger, PatientAuthorizationService patientAuthorizationService, AuditService auditService)
         {
             _context = context;
             _logger = logger;
             _patientAuthorizationService = patientAuthorizationService;
+            _auditService = auditService;
         }
 
 
@@ -83,12 +85,18 @@ namespace FHIR_IHE_API.Controllers
                 return Forbid();
             }
 
-            if (!_patientAuthorizationService.CanAccessPatient(entity.Id))
+            var canAccess = _patientAuthorizationService.CanAccessPatient(entity.Id);
+
+            if (!canAccess)
             {
+                await _auditService.LogPatientAccessAsync(HttpContext, "READ", entity.Id, entity.FhirId, StatusCodes.Status403Forbidden);
                 return Forbid();
             }
 
             var fhirPatient = PatientMapper.ToFhirFromEntity(entity);
+
+            await _auditService.LogPatientAccessAsync(HttpContext, "READ", entity.Id, entity.FhirId,
+                StatusCodes.Status200OK);
 
             return new FhirResult(fhirPatient);
         }
