@@ -80,7 +80,7 @@ namespace FHIR_IHE_API.Controllers
 
             if (entity == null)
             {
-                return NotFound();
+                return Forbid();
             }
 
             if (!_patientAuthorizationService.CanAccessPatient(entity.Id))

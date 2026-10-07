@@ -23,12 +23,13 @@ namespace FHIR_IHE_API.Middleware
             }
             finally
             {
-                // Wrap the logic in an if statement instead of using return
-                if (context.Request.Path.StartsWithSegments("/api"))
+                // Login is audited directly inside AccountController
+                // because the JWT does not exist yet at middleware level.
+                if (context.Request.Path.StartsWithSegments("/api") && !context.Request.Path.StartsWithSegments("/api/account/login"))
                 {
                     var resourceType = context.Request.RouteValues["controller"]?.ToString();
                     var resourceId = context.Request.RouteValues["id"]?.ToString();
-                    var action = context.Request.Method;
+                    var action = GetAuditAction(context.Request.Method);
 
                     try
                     {
@@ -51,6 +52,19 @@ namespace FHIR_IHE_API.Middleware
                     }
                 }
             }
+        }
+
+        private static string GetAuditAction(string httpMethod)
+        {
+            return httpMethod.ToUpperInvariant() switch
+            {
+                "GET" => "READ",
+                "POST" => "CREATE",
+                "PUT" => "UPDATE",
+                "PATCH" => "UPDATE",
+                "DELETE" => "DELETE",
+                _ => httpMethod.ToUpperInvariant()
+            };
         }
     }
 }
