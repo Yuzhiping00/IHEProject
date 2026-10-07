@@ -18,7 +18,8 @@ namespace FHIR_IHE_API.Services
         }
 
         public async Task LogAsync(HttpContext httpContext, string action, string? resourceType = null,
-            string? resourceId = null, int? statusCode = null)
+            string? resourceId = null, int? statusCode = null, ApplicationUser? applicationUser = null,
+            string? explicitRole = null)
         {
             try
             {
@@ -28,32 +29,50 @@ namespace FHIR_IHE_API.Services
 
                 var user = httpContext.User;
 
-                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                // --------------------------------------------------
+                // User identity
+                // --------------------------------------------------
 
-                var email = user.FindFirstValue(ClaimTypes.Email) ?? user.FindFirstValue(ClaimTypes.Name);
+                var userId = applicationUser?.Id ?? user.FindFirstValue(ClaimTypes.NameIdentifier);
 
+                var email = applicationUser?.Email ?? user.FindFirstValue(ClaimTypes.Email) ?? user.FindFirstValue(ClaimTypes.Name);
 
-                var role = user.FindFirstValue(ClaimTypes.Role);
+                var role = explicitRole ?? user.FindFirstValue(ClaimTypes.Role);
 
-                var patientIdClaim = user.FindFirstValue(ApplicationClaimTypes.PatientId);
+                // --------------------------------------------------
+                // Patient identity
+                // --------------------------------------------------
 
-                var providerIdClaim = user.FindFirstValue(ApplicationClaimTypes.ProviderId);
+                var patientId = applicationUser?.PatientId;
 
-                int? patientId = null;
-                int? providerId = null;
-
-                if (int.TryParse(patientIdClaim, out var parsedPatientId))
+                if (!patientId.HasValue)
                 {
-                    patientId = parsedPatientId;
+                    var patientIdClaim = user.FindFirstValue(ApplicationClaimTypes.PatientId);
+
+                    if (int.TryParse(patientIdClaim, out var parsedPatientId))
+                    {
+                        patientId = parsedPatientId;
+                    }
                 }
 
-                if (int.TryParse(providerIdClaim, out var parsedProviderId))
+                // --------------------------------------------------
+                // Provider identity
+                // --------------------------------------------------
+
+                var providerId = applicationUser?.ProviderId;
+
+                if (!providerId.HasValue)
                 {
-                    providerId = parsedProviderId;
+                    var providerIdClaim = user.FindFirstValue(ApplicationClaimTypes.ProviderId);
+
+                    if (int.TryParse(providerIdClaim, out var parsedProviderId))
+                    {
+                        providerId = parsedProviderId;
+                    }
                 }
 
                 // ----------------------------------------
-                // Determine status code
+                // Response status
                 // ----------------------------------------
 
                 var finalStatusState = statusCode ?? httpContext.Response.StatusCode;
@@ -68,17 +87,20 @@ namespace FHIR_IHE_API.Services
                     UserId = userId,
                     UserEmail = email,
                     Role = role,
+
                     PatientId = patientId,
                     ProviderId = providerId,
 
                     Action = action,
                     ResourceType = resourceType,
                     ResourceId = resourceId,
+
                     HttpMethod = httpContext.Request.Method,
                     RequestPath = httpContext.Request.Path,
 
                     StatusCode = finalStatusState,
                     Success = finalStatusState is >= 200 and < 300,
+
                     IpAddress = httpContext.Connection.RemoteIpAddress?.ToString(),
                     TimestampUtc = DateTime.UtcNow
                 };

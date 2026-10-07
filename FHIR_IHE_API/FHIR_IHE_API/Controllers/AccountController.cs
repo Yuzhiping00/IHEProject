@@ -53,6 +53,13 @@ namespace FHIR_IHE_API.Controllers
 
             if (user == null)
             {
+                await _auditService.LogAsync(
+                    HttpContext,
+                    "LOGIN_FAILED",
+                    "Authentication",
+                    loginRequest.Email,
+                    StatusCodes.Status401Unauthorized);
+
                 return Unauthorized("Invalid email or password");
             }
 
@@ -64,6 +71,14 @@ namespace FHIR_IHE_API.Controllers
 
             if (!passwordValid)
             {
+                await _auditService.LogAsync(
+                    HttpContext,
+                    "LOGIN_FAILED",
+                    "Authentication",
+                    loginRequest.Email,
+                    StatusCodes.Status401Unauthorized,
+                    user);
+
                 return Unauthorized("Invalid email or password");
             }
 
@@ -134,16 +149,16 @@ namespace FHIR_IHE_API.Controllers
 
             var token = GenerateJwtToken(user, role);
 
-            // ----------------------------------------
-            // Return user information
-            // ----------------------------------------
 
             // ----------------------------------------
             // Audit successful login
             // ----------------------------------------
             await _auditService.LogAsync(HttpContext, "LOGIN_SUCCESS", "Authentication", loginRequest.Email,
-                StatusCodes.Status200OK);
+                StatusCodes.Status200OK, user, role);
 
+            // ----------------------------------------
+            // Return user information
+            // ----------------------------------------
             var responseUser = new
             {
                 id = user.Id,
