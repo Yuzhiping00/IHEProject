@@ -61,6 +61,9 @@ namespace FHIR_IHE_API.Controllers
                 _context.Patients.Add(entity);
                 await _context.SaveChangesAsync();
 
+                await _auditService.LogPatientAccessAsync(HttpContext, "CREATE", entity.Id, entity.FhirId,
+                    StatusCodes.Status201Created);
+
                 // 4. Return FHIR JSON back
                 return new FhirResult(fhirPatient); // clean fhir json
             }
@@ -137,6 +140,9 @@ namespace FHIR_IHE_API.Controllers
             var fhirPatient = parser.Parse<FHIRPatient>(entity.JsonData);
 
             await _context.SaveChangesAsync();
+
+            await _auditService.LogPatientAccessAsync(HttpContext, "UPDATE", entity.Id, entity.FhirId,
+                StatusCodes.Status200OK);
             return new FhirResult(fhirPatient);
         }
 
@@ -145,15 +151,22 @@ namespace FHIR_IHE_API.Controllers
         [HttpDelete("delete/{id}")]
         public async Task<IActionResult> DeletePatient(string id)
         {
-            var patient = await _context.Patients.FirstOrDefaultAsync(p => p.FhirId == id);
+            var entity = await _context.Patients.FirstOrDefaultAsync(p => p.FhirId == id);
 
-            if (patient == null)
+            if (entity == null)
             {
                 return NotFound();
             }
 
-            _context.Patients.Remove(patient);
+            var targetPatientId = entity.Id;
+            var resourceId = entity.FhirId;
+
+            _context.Patients.Remove(entity);
+
             await _context.SaveChangesAsync();
+
+            await _auditService.LogPatientAccessAsync(HttpContext, "DELETE", targetPatientId, resourceId,
+                StatusCodes.Status200OK);
 
             return NoContent();
         }

@@ -25,8 +25,9 @@ namespace FHIR_IHE_API.Middleware
             {
                 // Login is audited directly inside AccountController
                 // because the JWT does not exist yet at middleware level.
-                if (context.Request.Path.StartsWithSegments("/api") && !context.Request.Path.StartsWithSegments("/api/account/login")
-                                                                    && !context.Items.ContainsKey(AuditService.AuditAlreadyLoggedKey))
+                if (context.Request.Path.StartsWithSegments("/api") &&
+                    !context.Request.Path.StartsWithSegments("/api/account/login") &&
+                    !context.Items.ContainsKey(AuditService.AuditAlreadyLoggedKey))
                 {
                     var resourceType = context.Request.RouteValues["controller"]?.ToString();
                     var resourceId = context.Request.RouteValues["id"]?.ToString();

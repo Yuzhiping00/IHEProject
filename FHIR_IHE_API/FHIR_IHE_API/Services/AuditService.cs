@@ -113,8 +113,6 @@ namespace FHIR_IHE_API.Services
 
                 _context.AuditLogs.Add(auditing);
                 await _context.SaveChangesAsync();
-                // Mark that the audit has been logged for this request
-                httpContext.Items[AuditAlreadyLoggedKey] = true;
             }
             catch (Exception ex)
             {
@@ -200,13 +198,14 @@ namespace FHIR_IHE_API.Services
                 _context.AuditLogs.Add(auditing);
 
                 await _context.SaveChangesAsync();
+                // Mark that the audit has been logged for this request
+                // Tell AuditMiddleware that this request
+                // has already been audited.
                 httpContext.Items[AuditAlreadyLoggedKey] = true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(
-                    ex,
-                    "Failed to write patient audit log.");
+                _logger.LogError(ex, "Failed to write audit log for Patient {TargetPatientId}", targetPatientId);
             }
         }
     }
