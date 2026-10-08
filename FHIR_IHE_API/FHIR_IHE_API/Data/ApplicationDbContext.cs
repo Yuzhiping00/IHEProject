@@ -28,7 +28,7 @@ namespace FHIR_IHE_API.Data
             // AspNetUserTokens
             // AspNetRoleClaims
 
-            // without this line of code, the Identity tables will not be created and you will get an error when trying to use Identity features.
+            // IdentityDbContext uses base.OnModelCreating() to configure the ASP.NET Core Identity schema.
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<Patient>(entity =>
@@ -82,6 +82,44 @@ namespace FHIR_IHE_API.Data
 
                 entity.Property(a => a.TimestampUtc)
                     .IsRequired();
+
+                // Supports the default newest-first audit log query
+                entity.HasIndex(a => new
+                {
+                    a.TimestampUtc,
+                    a.Id
+                });
+
+                // Supports filtering audit logs by the Provider who performed the action.
+                entity.HasIndex(a => new
+                {
+                    a.ProviderId,
+                    a.TimestampUtc,
+                    a.Id
+                });
+
+                // Supports filtering audit logs by the Patient who performed the action.
+                entity.HasIndex(a => new
+                {
+                    a.PatientId,
+                    a.TimestampUtc,
+                    a.Id
+                });
+
+                // Supports filtering audit logs by the Patient who was affected.
+                entity.HasIndex(a => new
+                {
+                    a.TargetPatientId,
+                    a.TimestampUtc,
+                    a.Id
+                });
+
+                // Supports looking up audit history for a specific resource.
+                entity.HasIndex(a => new
+                {
+                    a.ResourceType,
+                    a.ResourceId
+                });
             });
         }
     }
