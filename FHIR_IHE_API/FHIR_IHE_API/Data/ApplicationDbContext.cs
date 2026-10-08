@@ -5,10 +5,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FHIR_IHE_API.Data
 {
-
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
+
     {
         public DbSet<Patient> Patients { get; set; }
+
         public DbSet<AuditLog> AuditLogs { get; set; }
 
         public DbSet<Provider> Providers { get; set; }
