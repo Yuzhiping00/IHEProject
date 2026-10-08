@@ -1,5 +1,6 @@
 import type { AxiosResponse } from 'axios'
 import AxiosService from "@/services/core/axiosService";
+import type {Bundle} from "@/models/fhir/Bundle"
 
 /**
  * Represents an API service to interact with the resource controllers.
@@ -84,12 +85,12 @@ export abstract class ApiService<T> extends AxiosService {
    * @param path The resource path.
    * @param query The resource query.
    */
-  async query(query?: any): Promise<AxiosResponse<T[], any>> {
+ async query(query?: any): Promise<AxiosResponse<Bundle<T>, any>> {
     try {
       return await this.axios
-        .get<T[]>(this.path, { params: query });
+        .get<Bundle<T>>(this.path, { params: query });
     } catch (error) {
       return this.genericErrorHandler(error);
     }
-  }
+}
 }

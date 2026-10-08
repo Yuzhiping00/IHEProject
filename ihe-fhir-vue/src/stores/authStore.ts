@@ -1,14 +1,22 @@
 import {defineStore} from 'pinia'
 
+interface AuthUser {
+    id:string,
+    email:string,
+    role:string,
+    patientId?: number | null,
+}
+
 export const useAuthStore = defineStore('auth', {
     state: () => ({
-        user: null,
-        token: localStorage.getItem("token") || null,
+        user: JSON.parse(localStorage.getItem("user") || "null") as AuthUser | null,
+        token: localStorage.getItem("token") as string || null,
     }),
 
     actions: {
         setUser (userData : any) {
             this.user = userData
+            localStorage.setItem("user", JSON.stringify(userData))
         },
 
         setToken(token : any) {
@@ -19,17 +27,20 @@ export const useAuthStore = defineStore('auth', {
         clearAuth() {
             this.user = null
             this.token = null
+            localStorage.removeItem("token")
+            localStorage.removeItem("user")
         },
 
         logout() {
-            this.token = null;
-            localStorage.removeItem('token')
+             this.clearAuth()
         }
     },
 
     getters: {
-        isAuthenticated : (state) => !!state.token
+        isAuthenticated : (state) => !!state.token,
 
+        isProvider: (state) => state.user?.role === 'Provider',
+
+        isPatient: (state) => state.user?.role === 'Patient',
     }
-
 });

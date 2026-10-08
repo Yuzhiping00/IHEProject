@@ -16,7 +16,6 @@ class AccountService extends AxiosService {
    */
   basePath: string = "account";
 
-
   /**
    * Logs a user in given they provide the correct email and password
    */
@@ -26,13 +25,16 @@ class AccountService extends AxiosService {
       .catch(this.genericErrorHandler);
   }
 
-  async resetPasswordAsync(data:object): Promise<AxiosResponse<any>> {
-    try {
-      return await this.axios
-        .post<any>(`${this.rootPath}/reset-password`, data);
-    } catch (error) {
-      return this.genericErrorHandler(error);
-    }
+  changePassword(
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<AxiosResponse<any>> {
+    return this.axios
+      .post<any>(`${this.rootPath}/change-password`, {
+        currentPassword,
+        newPassword,
+      })
+      .catch(this.genericErrorHandler);
   }
 }
 

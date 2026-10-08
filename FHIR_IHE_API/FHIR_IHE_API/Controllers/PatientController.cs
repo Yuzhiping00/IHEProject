@@ -1,38 +1,40 @@
-using System.Text.Json;
 using FHIR_IHE_API.Data;
 using FHIR_IHE_API.Mapper;
 using FHIR_IHE_API.Models;
+using FHIR_IHE_API.Services;
 using Hl7.Fhir.Model;
-using Hl7.Fhir.Rest;
 using Hl7.Fhir.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.SqlServer.Query.Internal;
 using FHIRPatient = Hl7.Fhir.Model.Patient;
-using Patient = FHIR_IHE_API.Models.Patient;
 
 namespace FHIR_IHE_API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    //[Authorize]
+    [Authorize]
     public class PatientController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        private readonly FhirJsonParser  _parser = new FhirJsonParser();
+        private readonly FhirJsonParser _parser = new FhirJsonParser();
         private readonly FhirJsonSerializer _serializer = new FhirJsonSerializer();
         private readonly ILogger<PatientController> _logger;
+        private readonly PatientAuthorizationService _patientAuthorizationService;
+        private readonly AuditService _auditService;
 
         // Injecting database in constructor
-        public PatientController(ApplicationDbContext context, ILogger<PatientController> logger)
+        public PatientController(ApplicationDbContext context, ILogger<PatientController> logger, PatientAuthorizationService patientAuthorizationService, AuditService auditService)
         {
-           _context = context;
-           _logger = logger;
+            _context = context;
+            _logger = logger;
+            _patientAuthorizationService = patientAuthorizationService;
+            _auditService = auditService;
         }
 
 
         //GET: api/patient
+        [Authorize(Policy = "ProviderOnly")]
         [HttpGet]
         public async Task<IActionResult> GetAllPatients()
         {
@@ -42,9 +44,9 @@ namespace FHIR_IHE_API.Controllers
             return new FhirResult(bundle);
         }
 
-
+        [Authorize(Policy = "ProviderOnly")]
         [HttpPost("create")]
-        public async Task<ActionResult> CreatePatient([FromBody]PatientModel patientModel)
+        public async Task<ActionResult> CreatePatient([FromBody] PatientModel patientModel)
         {
 
             try
@@ -59,36 +61,51 @@ namespace FHIR_IHE_API.Controllers
                 _context.Patients.Add(entity);
                 await _context.SaveChangesAsync();
 
+                await _auditService.LogPatientAccessAsync(HttpContext, "CREATE", entity.Id, entity.FhirId,
+                    StatusCodes.Status201Created);
+
                 // 4. Return FHIR JSON back
                 return new FhirResult(fhirPatient); // clean fhir json
             }
             catch (Exception ex)
             {
-               // return BadRequest(ex.Message);
-               return BadRequest(new { error = ex.Message });
+                // return BadRequest(ex.Message);
+                return BadRequest(new { error = ex.Message });
             }
 
         }
 
-        //GET: api/patient/10ea202e-5787-46b3-8ef0-377963babfad
+        // GET: api/patient/10ea202e-5787-46b3-8ef0-377963babfad
+        // patient a can only access their own data, not patient b's. => ownership / resource authorization
+        [Authorize(Policy = "ProviderOrPatient")]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetPatient(string id)
-        { 
+        {
             var entity = await _context.Patients.FirstOrDefaultAsync(p => p.FhirId == id);
 
             if (entity == null)
             {
-                return NotFound();
+                return Forbid();
             }
 
-            //convert DB entity -> Fhir patient
+            var canAccess = _patientAuthorizationService.CanAccessPatient(entity.Id);
+
+            if (!canAccess)
+            {
+                await _auditService.LogPatientAccessAsync(HttpContext, "READ", entity.Id, entity.FhirId, StatusCodes.Status403Forbidden);
+                return Forbid();
+            }
 
             var fhirPatient = PatientMapper.ToFhirFromEntity(entity);
+
+            await _auditService.LogPatientAccessAsync(HttpContext, "READ", entity.Id, entity.FhirId,
+                StatusCodes.Status200OK);
 
             return new FhirResult(fhirPatient);
         }
 
         // PUT: api/patient/id/update
+        [Authorize(Policy = "ProviderOnly")]
         [HttpPut("{id}/update")]
         public async Task<IActionResult> PutPatient(string id, [FromBody] PatientModel? updatedPatient)
         {
@@ -112,7 +129,7 @@ namespace FHIR_IHE_API.Controllers
 
             if (entity == null)
             {
-                return NotFound(); 
+                return NotFound();
             }
 
             PatientMapper.UpdateEntity(entity, updatedPatient, id);
@@ -123,24 +140,59 @@ namespace FHIR_IHE_API.Controllers
             var fhirPatient = parser.Parse<FHIRPatient>(entity.JsonData);
 
             await _context.SaveChangesAsync();
+
+            await _auditService.LogPatientAccessAsync(HttpContext, "UPDATE", entity.Id, entity.FhirId,
+                StatusCodes.Status200OK);
             return new FhirResult(fhirPatient);
         }
 
         //DELETE: api/patient/5
+        [Authorize(Policy = "ProviderOnly")]
         [HttpDelete("delete/{id}")]
         public async Task<IActionResult> DeletePatient(string id)
         {
-            var patient = await _context.Patients.FirstOrDefaultAsync(p => p.FhirId == id);
+            var entity = await _context.Patients.FirstOrDefaultAsync(p => p.FhirId == id);
 
-            if (patient == null)
+            if (entity == null)
             {
                 return NotFound();
             }
 
-            _context.Patients.Remove(patient);
+            var targetPatientId = entity.Id;
+            var resourceId = entity.FhirId;
+
+            _context.Patients.Remove(entity);
+
             await _context.SaveChangesAsync();
 
+            await _auditService.LogPatientAccessAsync(HttpContext, "DELETE", targetPatientId, resourceId,
+                StatusCodes.Status200OK);
+
             return NoContent();
+        }
+
+        [Authorize(Policy = "PatientOnly")]
+        [HttpGet("me")]
+        public async Task<IActionResult> GetMyPatient()
+        {
+            var patientId = _patientAuthorizationService.GetCurrentPatientId();
+
+            if (!patientId.HasValue)
+            {
+                return Forbid();
+            }
+
+            var entity = await _context.Patients
+                .FirstOrDefaultAsync(p => p.Id == patientId.Value);
+
+            if (entity == null)
+            {
+                return NotFound();
+            }
+
+            var fhirPatient = PatientMapper.ToFhirFromEntity(entity);
+
+            return new FhirResult(fhirPatient);
         }
 
     }

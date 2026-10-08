@@ -11,16 +11,15 @@ export const usePatientStore = defineStore("patient", {
   },
   actions: {
     async setPatient() {
-      const response = await patientService.query();
-      if (response.status === 200 && response.data && response.data.length) {
-        this.patient = response.data.find(Boolean) as Patient;
+      const patients = await patientService.queryPatients();
+      if (patients.length > 0) {
+        this.patient = patients[0]
         return true;
       }
       return false;
     },
 
     //convert flat model to FHIR
-
     toFhir(): any {
       return {
         resourceType: "Patient",

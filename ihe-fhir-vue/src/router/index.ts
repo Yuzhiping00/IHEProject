@@ -2,9 +2,10 @@ import { createRouter, createWebHistory } from "vue-router";
 import PatientCreate from "@/components/PatientCreate.vue";
 import NotFound from "@/views/NotFound.vue";
 import PatientList from "@/components/PatientList.vue";
+import PatientInformation from "@/components/PatientInformation.vue";
+import ChangePassword from "@/components/ChangePassword.vue";
 import Login from "@/components/Login.vue";
-import { useAuthStore } from "@/stores/authStore";
-import ResetPassword from "@/components/ResetPassword.vue";
+import { useAuthStore } from "@/stores/authStore";  
 
 const routes = [
   {
@@ -13,30 +14,42 @@ const routes = [
     component: Login,
   },
 
-  // {
-  //   path: "/reset-password",
-  //   name: "ResetPassword",
-  //   component: ResetPassword,
-  //   meta: {
-  //     requireAuth: true
-  //   }
-  // },
-  
-  {
-      path:"/create",
-      name:"PatientCreate",
-      component:PatientCreate,
-      meta: {
-        requireAuth: true
-      }
-  },
-
-  {
+   {
     path: "/patients",
     name: "PatientList",
     component: PatientList,
     meta: {
-      requireAuth: true
+      requireAuth: true,
+      role: "Provider",
+    },
+  },
+
+  {
+    path: "/create",
+    name: "PatientCreate",
+    component: PatientCreate,
+    meta: {
+      requireAuth: true,
+      role: "Provider",
+    },
+  },
+
+  {
+    path:"/patient-information",
+    name:"PatientInformation",
+    component: PatientInformation,
+    meta: {
+      requireAuth: true,
+    }
+  },
+
+  {
+    path:"/change-password",
+    name:"ChangePassword",
+    component: ChangePassword,
+    meta: {
+      requireAuth: true,
+      role:"Patient"
     }
   },
 
@@ -53,15 +66,28 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to) => {
   const authStore = useAuthStore();
-  
-  if(to.meta.requireAuth && !authStore.isAuthenticated) {
-    // Redirect to login if not authenticated
-    next("/")
-  } else {
-    next()
+
+  // ----------------------------------------
+  // Authentication check
+  // ----------------------------------------
+
+  if (to.meta.requireAuth && !authStore.isAuthenticated) {
+    return {name: "Login"}
   }
-})
+
+  // ----------------------------------------
+  // Role check
+  // ----------------------------------------
+
+  if (to.meta.role && authStore.user?.role !== to.meta.role) {
+
+    return {name: "NotFound"}
+  }
+
+  return true
+
+});
 
 export default router;

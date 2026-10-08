@@ -1,18 +1,23 @@
 using FHIR_IHE_API.Data;
-using Hl7.Fhir.Rest;
+using FHIR_IHE_API.Identity;
+using FHIR_IHE_API.Middleware;
+using FHIR_IHE_API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 
 namespace FHIR_IHE_API
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
-            // Add DbContext with PostgreSQL
+            // ----------------------------------------
+            // Database
+            // ----------------------------------------
 
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
             {
@@ -20,7 +25,37 @@ namespace FHIR_IHE_API
 
             });
 
-            builder.Services.AddControllers().AddNewtonsoftJson();
+            builder.Services.AddHttpContextAccessor();
+
+
+            // ----------------------------------------
+            // Audit service
+            // ----------------------------------------
+
+            builder.Services.AddScoped<AuditService>();
+            builder.Services.AddScoped<PatientAuthorizationService>();
+
+            // ----------------------------------------
+            // ASP.NET Core Identity
+            // ----------------------------------------
+
+            builder.Services.AddIdentityCore<ApplicationUser>(options =>
+                {
+                    options.Password.RequireDigit = true;
+                    options.Password.RequireLowercase = true;
+                    options.Password.RequireUppercase = true;
+                    options.Password.RequireNonAlphanumeric = true;
+                    options.Password.RequiredLength = 8;
+
+                    options.User.RequireUniqueEmail = true;
+                })
+                .AddRoles<IdentityRole>()
+                .AddEntityFrameworkStores<ApplicationDbContext>()
+                .AddSignInManager();
+
+            // ----------------------------------------
+            // JWT Authentication
+            // ----------------------------------------
 
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
             {
@@ -32,17 +67,89 @@ namespace FHIR_IHE_API
                     ValidateIssuerSigningKey = true,
                     ValidIssuer = builder.Configuration["Jwt:Issuer"],
                     ValidAudience = builder.Configuration["Jwt:Audience"],
-                    IssuerSigningKey =
-                        new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
-                            System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]!))
+                    IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]!)),
+                    //maximum tolerance for the expiration date of the token. If the token is expired by more than this value, it will be rejected.
+                    ClockSkew = TimeSpan.FromMinutes(1)
                 };
             });
 
-            builder.Services.AddAuthorization();
+            // ----------------------------------------
+            // Authorization
+            // ----------------------------------------
+
+            builder.Services.AddAuthorization(options =>
+            {
+                options.AddPolicy("ProviderOnly", policy =>
+                {
+                    policy.RequireRole(ApplicationRoles.ProviderRole);
+                });
+
+                options.AddPolicy("PatientOnly", policy =>
+                {
+                    policy.RequireRole(ApplicationRoles.PatientRole);
+                });
+
+                options.AddPolicy("ProviderOrPatient", policy =>
+                {
+                    // We passed multiple roles, either of role works
+                    policy.RequireRole(ApplicationRoles.ProviderRole, ApplicationRoles.PatientRole);
+                });
+
+                // do not write because it requires both patient and provider roles 
+
+                /*options.AddPolicy("PatientOrProvider", policy =>
+                {
+                    policy.RequireRole(ApplicationRoles.PatientRole);
+                    policy.RequireRole(ApplicationRoles.ProviderRole);
+                });*/
+            });
+
+
+            // ----------------------------------------
+            // Controllers
+            // ----------------------------------------
+
+            builder.Services.AddControllers().AddNewtonsoftJson();
+
+            // ----------------------------------------
+            // Swagger
+            // ----------------------------------------
+
 
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
+
+            builder.Services.AddSwaggerGen(options =>
+            {
+                options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "bearer",
+                    BearerFormat = "JWT",
+                    In = ParameterLocation.Header,
+                    Description = "Enter your JWT token."
+                });
+
+                options.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        Array.Empty<string>()
+                    }
+                });
+            });
+
+            // ----------------------------------------
+            // CORS
+            // ----------------------------------------
 
             builder.Services.AddCors(options =>
             {
@@ -55,6 +162,17 @@ namespace FHIR_IHE_API
 
             var app = builder.Build();
 
+            using (var scope = app.Services.CreateScope())
+            {
+                var services = scope.ServiceProvider;
+
+                await IdentitySeeder.SeedAsync(services);
+            }
+
+            // ----------------------------------------
+            // Development tools
+            // ----------------------------------------
+
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
@@ -62,11 +180,21 @@ namespace FHIR_IHE_API
                 app.UseSwaggerUI();
             }
 
+            // ----------------------------------------
+            // Middleware
+            // ----------------------------------------
+
             app.UseCors("AllowVueApp");
 
             //app.UseHttpsRedirection();
 
             app.UseAuthentication();
+
+            // ----------------------------------------
+            // Audit
+            // ----------------------------------------
+
+            app.UseMiddleware<AuditMiddleware>();
 
             app.UseAuthorization();
 
