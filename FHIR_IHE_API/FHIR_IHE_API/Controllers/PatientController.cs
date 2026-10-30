@@ -18,7 +18,6 @@ namespace FHIR_IHE_API.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly FhirJsonParser _parser = new FhirJsonParser();
-        private readonly FhirJsonSerializer _serializer = new FhirJsonSerializer();
         private readonly ILogger<PatientController> _logger;
         private readonly PatientAuthorizationService _patientAuthorizationService;
         private readonly AuditService _auditService;
@@ -36,10 +35,48 @@ namespace FHIR_IHE_API.Controllers
         //GET: api/patient
         [Authorize(Policy = "ProviderOnly")]
         [HttpGet]
+        [HttpGet("/Patient")]
+        [Produces("application/fhir+json")]
         public async Task<IActionResult> GetAllPatients()
         {
-            var entities = await _context.Patients.ToListAsync();
-            var bundle = PatientMapper.ToBundle(entities);
+            var entities = await _context.Patients
+                .AsNoTracking()
+                .OrderBy(p => p.FhirId)
+                .ToListAsync();
+
+            var bundle = new Bundle
+            {
+                Type = Bundle.BundleType.Searchset,
+                Total = entities.Count,
+                Entry = new List<Bundle.EntryComponent>()
+            }; 
+
+            foreach(var entity in entities)
+            {
+                FHIRPatient fhirPatient;
+
+                try
+                {
+                    fhirPatient = ParsePatient(entity);
+                }
+                catch(Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to parse Patient JSON, Patient ID: {Id}", entity.FhirId);
+
+                    return StatusCode(StatusCodes.Status500InternalServerError);
+                }
+
+                var fullUrl = $"{Request.Scheme}://{Request.Host}" + $"{Request.PathBase}/Patient/" + Uri.EscapeDataString(entity.FhirId);
+
+                bundle.Entry.Add(new Bundle.EntryComponent
+                {
+                    FullUrl = fullUrl,
+                    Resource = fhirPatient
+                });
+
+            }
+
+            await _auditService.LogAsync(HttpContext, "READ", "Patient", null, StatusCodes.Status200OK);
 
             return new FhirResult(bundle);
         }
@@ -79,13 +116,17 @@ namespace FHIR_IHE_API.Controllers
         // patient a can only access their own data, not patient b's. => ownership / resource authorization
         [Authorize(Policy = "ProviderOrPatient")]
         [HttpGet("{id}")]
+        [HttpGet("/Patient/{id}")]
+        [Produces("application/fhir+json")]
         public async Task<IActionResult> GetPatient(string id)
         {
-            var entity = await _context.Patients.FirstOrDefaultAsync(p => p.FhirId == id);
+            var entity = await _context.Patients
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.FhirId == id);
 
             if (entity == null)
             {
-                return Forbid();
+                return NotFound();
             }
 
             var canAccess = _patientAuthorizationService.CanAccessPatient(entity.Id);
@@ -96,7 +137,23 @@ namespace FHIR_IHE_API.Controllers
                 return Forbid();
             }
 
-            var fhirPatient = PatientMapper.ToFhirFromEntity(entity);
+            FHIRPatient fhirPatient;
+
+            try
+            {
+                fhirPatient = ParsePatient(entity);
+            }
+            catch (Exception ex)
+            {
+               _logger.LogError(
+               ex,
+               "Failed to restore FHIR Patient. Patient ID: {Id}",
+               entity.FhirId);
+
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError);
+            }
+
 
             await _auditService.LogPatientAccessAsync(HttpContext, "READ", entity.Id, entity.FhirId,
                 StatusCodes.Status200OK);
@@ -183,6 +240,7 @@ namespace FHIR_IHE_API.Controllers
             }
 
             var entity = await _context.Patients
+                .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == patientId.Value);
 
             if (entity == null)
@@ -190,9 +248,45 @@ namespace FHIR_IHE_API.Controllers
                 return NotFound();
             }
 
-            var fhirPatient = PatientMapper.ToFhirFromEntity(entity);
+            FHIRPatient fhirPatient;
+
+            try
+            {
+                fhirPatient = ParsePatient(entity);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,"Failed to restore current user's FHIR Patient.");
+
+                await _auditService.LogPatientAccessAsync(
+                HttpContext,
+                "READ",
+                entity.Id,
+                entity.FhirId,
+                StatusCodes.Status500InternalServerError);
+
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError);
+            }
+
+            await _auditService.LogPatientAccessAsync(
+                HttpContext,
+                "READ",
+                entity.Id,
+                entity.FhirId,
+                StatusCodes.Status200OK);
 
             return new FhirResult(fhirPatient);
+        }
+
+        private FHIRPatient ParsePatient(Models.Patient entity)
+        {
+            if(!string.IsNullOrWhiteSpace(entity.JsonData))
+            {
+                return _parser.Parse<FHIRPatient>(entity.JsonData);
+            }
+
+            return PatientMapper.ToFhirFromEntity(entity);
         }
 
     }
