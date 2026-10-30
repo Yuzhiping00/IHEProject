@@ -12,7 +12,9 @@ namespace FHIR_IHE_API.Models
         [MaxLength(20)]
         public string? FamilyName { get; set; }
 
-        public string? FhirId { get; set; }
+        [Required]
+        [MaxLength(64)]
+        public string FhirId { get; set; } = string.Empty;
 
         [Required]
         [MaxLength(20)]

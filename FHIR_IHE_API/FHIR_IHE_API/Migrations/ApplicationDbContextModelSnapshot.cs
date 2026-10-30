@@ -191,7 +191,9 @@ namespace FHIR_IHE_API.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.Property<string>("FhirId")
-                        .HasColumnType("text");
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("Gender")
                         .IsRequired()
@@ -206,6 +208,9 @@ namespace FHIR_IHE_API.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("FhirId")
+                        .IsUnique();
 
                     b.ToTable("Patients");
                 });
