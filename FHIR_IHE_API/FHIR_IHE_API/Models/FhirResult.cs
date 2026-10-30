@@ -6,7 +6,7 @@ namespace FHIR_IHE_API.Models
 {
     public class FhirResult : ContentResult
     {
-        public FhirResult(Resource resource)
+        public FhirResult(Resource resource, int statusCode = StatusCodes.Status200OK)
         {
             var serializer = new FhirJsonSerializer(new SerializerSettings()
             {
@@ -15,8 +15,7 @@ namespace FHIR_IHE_API.Models
 
             Content = serializer.SerializeToString(resource);
             ContentType = "application/fhir+json";
-            StatusCode = 200;
-
+            StatusCode = statusCode;
         }
     }
 }

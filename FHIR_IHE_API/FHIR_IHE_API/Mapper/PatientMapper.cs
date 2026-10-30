@@ -1,12 +1,13 @@
-﻿using Hl7.Fhir.Model;
-using System.Text.Json;
-using FHIR_IHE_API.Models;
+﻿using FHIR_IHE_API.Models;
+using Hl7.Fhir.Model;
 using Hl7.Fhir.Serialization;
 using Hl7.Fhir.Support;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
-using Patient = FHIR_IHE_API.Models.Patient;
+using System.Globalization;
+using System.Text.Json;
 using FHIRPatient = Hl7.Fhir.Model.Patient;
+using Patient = FHIR_IHE_API.Models.Patient;
 
 
 namespace FHIR_IHE_API.Mapper
@@ -16,18 +17,45 @@ namespace FHIR_IHE_API.Mapper
         private static readonly FhirJsonSerializer _serializer = new FhirJsonSerializer();
 
         // Map Vue PatientModel to FHIR Patient
+
         public static FHIRPatient ToFhirFromModel(PatientModel model)
         {
+            ArgumentNullException.ThrowIfNull(model);
+
+            if (string.IsNullOrWhiteSpace(model.Gender) ||
+                !Enum.TryParse<AdministrativeGender>(
+                    model.Gender,
+                    true,
+                    out var gender) ||
+                !Enum.IsDefined(typeof(AdministrativeGender), gender))
+            {
+                throw new ArgumentException(
+                    "Invalid FHIR Patient gender.",
+                    nameof(model));
+            }
+
+            if (string.IsNullOrWhiteSpace(model.BirthDate) ||
+                !DateTime.TryParseExact(
+                    model.BirthDate,
+                    "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out _))
+            {
+                throw new ArgumentException(
+                    "BirthDate must use the yyyy-MM-dd format.",
+                    nameof(model));
+            }
+
             var fhirPatient = new FHIRPatient
             {
-                Id = string.IsNullOrWhiteSpace(model.Id) ? Guid.NewGuid().ToString() : model.Id,
-                Gender = Enum.TryParse<AdministrativeGender>(model.Gender, true, out var g) ? g : null,
-                BirthDate = model.BirthDate,
+                Id = Guid.NewGuid().ToString(),
+                Gender = gender,
+                BirthDate = model.BirthDate
             };
 
-            if (model?.Name.Any() == true)
+            if (model.Name?.Any() == true)
             {
-
                 fhirPatient.Name = model.Name.Select(n => new HumanName
                 {
                     Family = n.Family,
@@ -39,10 +67,13 @@ namespace FHIR_IHE_API.Mapper
         }
 
 
+
         // Map from FHIR Patient to DB Entity
 
         public static Patient ToEntity(FHIRPatient fhirPatient)
         {
+            ArgumentNullException.ThrowIfNull(fhirPatient);
+
             return new Patient
             {
                 FhirId = fhirPatient.Id,

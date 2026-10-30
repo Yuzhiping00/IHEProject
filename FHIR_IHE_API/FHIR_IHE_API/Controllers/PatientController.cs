@@ -83,34 +83,52 @@ namespace FHIR_IHE_API.Controllers
 
         [Authorize(Policy = "ProviderOnly")]
         [HttpPost("create")]
+        [Produces("application/fhir+json")]
         public async Task<ActionResult> CreatePatient([FromBody] PatientModel patientModel)
         {
-
             try
             {
-                // 1. Map DTO -> FHIR
-                var fhirPatient = PatientMapper.ToFhirFromModel(patientModel);
+                // 1. Map request model to FHIR Patient.
+                var fhirPatient =PatientMapper.ToFhirFromModel(patientModel);
 
-                // 2. Map FHIR -> Entity 
+                // 2. Map FHIR Patient to database entity.
                 var entity = PatientMapper.ToEntity(fhirPatient);
 
-                // 3. Save
+                // 3. Save Patient to database.
                 _context.Patients.Add(entity);
                 await _context.SaveChangesAsync();
 
-                await _auditService.LogPatientAccessAsync(HttpContext, "CREATE", entity.Id, entity.FhirId,
+                // 4. Record successful creation.
+                await _auditService.LogPatientAccessAsync(
+                    HttpContext,
+                    "CREATE",
+                    entity.Id,
+                    entity.FhirId,
                     StatusCodes.Status201Created);
 
-                // 4. Return FHIR JSON back
-                return new FhirResult(fhirPatient); // clean fhir json
+                // 5. Build the FHIR resource location.
+                var location =
+                    $"{Request.Scheme}://{Request.Host}" +
+                    $"{Request.PathBase}/Patient/" +
+                    Uri.EscapeDataString(entity.FhirId!);
+
+                // 6. Return HTTP 201 Created.
+                Response.Headers.Location = location;
+
+                return new FhirResult(fhirPatient, StatusCodes.Status201Created);
             }
             catch (Exception ex)
             {
-                // return BadRequest(ex.Message);
-                return BadRequest(new { error = ex.Message });
-            }
+                _logger.LogError(
+                    ex,
+                    "Failed to create Patient resource.");
 
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new { error = "An error occurred while creating the Patient resource." });
+            }
         }
+
 
         // GET: api/patient/10ea202e-5787-46b3-8ef0-377963babfad
         // patient a can only access their own data, not patient b's. => ownership / resource authorization
