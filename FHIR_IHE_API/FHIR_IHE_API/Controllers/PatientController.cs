@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using FHIRPatient = Hl7.Fhir.Model.Patient;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace FHIR_IHE_API.Controllers
 {
@@ -126,6 +128,102 @@ namespace FHIR_IHE_API.Controllers
                 return StatusCode(
                     StatusCodes.Status500InternalServerError,
                     new { error = "An error occurred while creating the Patient resource." });
+            }
+        }
+
+        // FHIR R4 Create: POST /api/Patient
+        [Authorize(Policy = "ProviderOnly")]
+        [HttpPost]
+        [Consumes("application/fhir+json", "application/json")]
+        [Produces("application/fhir+json")]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> CreateFhirPatient(
+            [FromBody] JObject resourceJson)
+        {
+            if (resourceJson == null)
+            {
+                return BadRequest();
+            }
+
+            FHIRPatient fhirPatient;
+
+
+            try
+            {
+                // Convert the incoming JSON into a FHIR Patient resource.
+                string json = resourceJson.ToString(Formatting.None);
+
+                fhirPatient = _parser.Parse<FHIRPatient>(json);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Invalid FHIR Patient resource.");
+
+                var outcome = new OperationOutcome();
+
+                    outcome.Issue.Add(new OperationOutcome.IssueComponent
+                    {
+                        Severity = OperationOutcome.IssueSeverity.Error,
+                        Code = OperationOutcome.IssueType.Invalid,
+                        Diagnostics = ex.Message
+                    });
+
+                    return new FhirResult(
+                        outcome,
+                        StatusCodes.Status400BadRequest);
+            }
+
+            // Continue with the persistence and audit implementation here.
+
+            try
+            {
+                // 3. Generate a server-assigned FHIR resource ID.
+                fhirPatient.Id = Guid.NewGuid().ToString();
+
+                // 4. Map the FHIR Patient to the database entity.
+                var entity = PatientMapper.ToEntity(fhirPatient);
+
+                // 5. Save the Patient.
+                _context.Patients.Add(entity);
+                await _context.SaveChangesAsync();
+
+                // 6. Record the successful creation.
+                await _auditService.LogPatientAccessAsync(
+                    HttpContext,
+                    "CREATE",
+                    entity.Id,
+                    entity.FhirId,
+                    StatusCodes.Status201Created);
+
+                // 7. Build the resource location.
+                var location =
+                    $"{Request.Scheme}://{Request.Host}" +
+                    $"{Request.PathBase}/api/Patient/" +
+                    Uri.EscapeDataString(entity.FhirId);
+
+                Response.Headers.Location = location;
+
+                // 8. Return the created FHIR Patient.
+                return new FhirResult(
+                    fhirPatient,
+                    StatusCodes.Status201Created);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Failed to create FHIR Patient resource.");
+
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new
+                    {
+                        error = "An error occurred while creating the Patient resource."
+                    });
             }
         }
 
