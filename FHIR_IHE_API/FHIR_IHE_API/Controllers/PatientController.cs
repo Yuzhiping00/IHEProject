@@ -120,7 +120,8 @@ namespace FHIR_IHE_API.Controllers
             [FromQuery(Name = "gender")] string? gender,
             [FromQuery(Name = "birthdate")] string? birthdate,
             [FromQuery(Name = "_count")] string? count,
-            [FromQuery(Name = "_page")] string? page
+            [FromQuery(Name = "_page")] string? page,
+            [FromQuery(Name = "_sort")] string? sort
         )
         {
             // ----------------------------------------
@@ -128,7 +129,7 @@ namespace FHIR_IHE_API.Controllers
             // ----------------------------------------
 
             var supportedParameters = new HashSet<string>(
-                new[] { "_id", "name", "gender", "birthdate",  "_count", "_page"},
+                new[] { "_id", "name", "gender", "birthdate",  "_count", "_page", "_sort"},
                 StringComparer.OrdinalIgnoreCase);
 
             var unsupportedParameter = Request.Query.Keys
@@ -194,6 +195,15 @@ namespace FHIR_IHE_API.Controllers
                     StatusCodes.Status400BadRequest);
             }
 
+            if (!TryGetSearchParameter("_sort", sort, out sort, out error))
+            {
+                return CreateFhirOperationOutcome(
+                    error!,
+                    OperationOutcome.IssueType.Invalid,
+                    StatusCodes.Status400BadRequest);
+            }
+
+
             // ----------------------------------------
             // 3. Validate FHIR ID
             // ----------------------------------------
@@ -249,6 +259,75 @@ namespace FHIR_IHE_API.Controllers
                 }
 
                 parsedBirthDate = date.Date;
+            }
+
+            // 6. Validate Sort
+            var supportedSortFields = new HashSet<string>(
+                new[]
+                {
+                    "_id",
+                    "name",
+                    "gender",
+                    "birthdate"
+                },
+                StringComparer.OrdinalIgnoreCase);
+
+            // Store each sort field and its sorting direction.
+            var sortFields = new List<(string Field, bool Descending)>();
+
+            if (sort != null)
+            {
+                var requestedSortFields = sort.Split(',');
+
+                var usedSortFields = new HashSet<string>(
+                    StringComparer.OrdinalIgnoreCase);
+
+                foreach (var requestedSortField in requestedSortFields)
+                {
+                    var sortValue = requestedSortField.Trim();
+
+                    if (string.IsNullOrWhiteSpace(sortValue))
+                    {
+                        return CreateFhirOperationOutcome(
+                            "Invalid _sort value.",
+                            OperationOutcome.IssueType.Invalid,
+                            StatusCodes.Status400BadRequest);
+                    }
+
+                    var isDescendingOrder = sortValue.StartsWith(
+                        "-",
+                        StringComparison.Ordinal);
+
+                    var sortField = isDescendingOrder
+                        ? sortValue[1..].Trim()
+                        : sortValue;
+
+                    if (string.IsNullOrWhiteSpace(sortField))
+                    {
+                        return CreateFhirOperationOutcome(
+                            "Invalid _sort value.",
+                            OperationOutcome.IssueType.Invalid,
+                            StatusCodes.Status400BadRequest);
+                    }
+
+                    if (!supportedSortFields.Contains(sortField))
+                    {
+                        return CreateFhirOperationOutcome(
+                            $"Unsupported sort parameter '{sortField}'.",
+                            OperationOutcome.IssueType.NotSupported,
+                            StatusCodes.Status400BadRequest);
+                    }
+
+                    if (!usedSortFields.Add(sortField))
+                    {
+                        return CreateFhirOperationOutcome(
+                            $"Duplicate sort parameter '{sortField}'.",
+                            OperationOutcome.IssueType.Invalid,
+                            StatusCodes.Status400BadRequest);
+                    }
+
+                    sortFields.Add((sortField.ToLowerInvariant(), isDescendingOrder));
+                }
             }
 
             // ----------------------------------------
@@ -340,15 +419,98 @@ namespace FHIR_IHE_API.Controllers
             // 8. Retrieve total count and paged Patient records
             // ----------------------------------------
 
-            // Count all records that match the search criteria.
-            // This value represents the total number of matching resources,
-            // not the number of resources returned on the current page.
-
+            // 1. Get the total number of matching records before pagination.
             var totalCount = await query.CountAsync();
 
-            // Retrieve only the records required for the current page.
-            var entities = await query
-                .OrderBy(p => p.FhirId)
+            // Apply multiple sorting fields in the requested order.
+            IOrderedQueryable<Models.Patient>? orderedQuery = null;
+
+            foreach (var sortField in sortFields)
+            {
+                var field = sortField.Field.ToLowerInvariant();
+                var descending = sortField.Descending;
+
+                if (orderedQuery == null)
+                {
+                    // Apply the primary sorting field.
+                    orderedQuery = field switch
+                    {
+                        "name" when descending =>
+                            query.OrderByDescending(p => p.FamilyName)
+                                 .ThenByDescending(p => p.GivenName),
+
+                        "name" =>
+                            query.OrderBy(p => p.FamilyName)
+                                 .ThenBy(p => p.GivenName),
+
+                        "gender" when descending =>
+                            query.OrderByDescending(p => p.Gender),
+
+                        "gender" =>
+                            query.OrderBy(p => p.Gender),
+
+                        "birthdate" when descending =>
+                            query.OrderByDescending(p => p.BirthDate),
+
+                        "birthdate" =>
+                            query.OrderBy(p => p.BirthDate),
+
+                        "_id" when descending =>
+                            query.OrderByDescending(p => p.FhirId),
+
+                        "_id" =>
+                            query.OrderBy(p => p.FhirId),
+
+                        _ => query.OrderBy(p => p.FhirId)
+                    };
+                }
+                else
+                {
+                    // Apply subsequent sorting fields.
+                    orderedQuery = field switch
+                    {
+                        "name" when descending =>
+                            orderedQuery.ThenByDescending(p => p.FamilyName)
+                                        .ThenByDescending(p => p.GivenName),
+
+                        "name" =>
+                            orderedQuery.ThenBy(p => p.FamilyName)
+                                        .ThenBy(p => p.GivenName),
+
+                        "gender" when descending =>
+                            orderedQuery.ThenByDescending(p => p.Gender),
+
+                        "gender" =>
+                            orderedQuery.ThenBy(p => p.Gender),
+
+                        "birthdate" when descending =>
+                            orderedQuery.ThenByDescending(p => p.BirthDate),
+
+                        "birthdate" =>
+                            orderedQuery.ThenBy(p => p.BirthDate),
+
+                        "_id" when descending =>
+                            orderedQuery.ThenByDescending(p => p.FhirId),
+
+                        "_id" =>
+                            orderedQuery.ThenBy(p => p.FhirId),
+
+                        _ => orderedQuery
+                    };
+                }
+            }
+
+            // Use FHIR ID as a stable tie-breaker when it is not already included.
+            if (!sortFields.Any(s =>
+                    s.Field.Equals("_id", StringComparison.OrdinalIgnoreCase)))
+            {
+                orderedQuery = orderedQuery == null
+                    ? query.OrderBy(p => p.FhirId)
+                    : orderedQuery.ThenBy(p => p.FhirId);
+            }
+
+            // Apply pagination after sorting.
+            var entities = await (orderedQuery ?? query.OrderBy(p => p.FhirId))
                 .Skip(offset)
                 .Take(pageSize)
                 .ToListAsync();
