@@ -36,6 +36,9 @@ namespace FHIR_IHE_API.Data
             {
                 entity.Property(p => p.BirthDate)
                     .HasColumnType("date");
+
+                entity.HasIndex(p => p.FhirId)
+                    .IsUnique();
             });
 
             modelBuilder.Entity<ApplicationUser>()

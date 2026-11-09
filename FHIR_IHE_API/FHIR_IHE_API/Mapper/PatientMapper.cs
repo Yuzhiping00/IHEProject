@@ -1,12 +1,13 @@
-﻿using Hl7.Fhir.Model;
-using System.Text.Json;
-using FHIR_IHE_API.Models;
+﻿using FHIR_IHE_API.Models;
+using Hl7.Fhir.Model;
 using Hl7.Fhir.Serialization;
 using Hl7.Fhir.Support;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
-using Patient = FHIR_IHE_API.Models.Patient;
+using System.Globalization;
+using System.Text.Json;
 using FHIRPatient = Hl7.Fhir.Model.Patient;
+using Patient = FHIR_IHE_API.Models.Patient;
 
 
 namespace FHIR_IHE_API.Mapper
@@ -14,20 +15,48 @@ namespace FHIR_IHE_API.Mapper
     public class PatientMapper
     {
         private static readonly FhirJsonSerializer _serializer = new FhirJsonSerializer();
+        private static readonly FhirJsonParser _parser = new FhirJsonParser();
 
         // Map Vue PatientModel to FHIR Patient
+
         public static FHIRPatient ToFhirFromModel(PatientModel model)
         {
+            ArgumentNullException.ThrowIfNull(model);
+
+            if (string.IsNullOrWhiteSpace(model.Gender) ||
+                !Enum.TryParse<AdministrativeGender>(
+                    model.Gender,
+                    true,
+                    out var gender) ||
+                !Enum.IsDefined(typeof(AdministrativeGender), gender))
+            {
+                throw new ArgumentException(
+                    "Invalid FHIR Patient gender.",
+                    nameof(model));
+            }
+
+            if (string.IsNullOrWhiteSpace(model.BirthDate) ||
+                !DateTime.TryParseExact(
+                    model.BirthDate,
+                    "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out _))
+            {
+                throw new ArgumentException(
+                    "BirthDate must use the yyyy-MM-dd format.",
+                    nameof(model));
+            }
+
             var fhirPatient = new FHIRPatient
             {
-                Id = string.IsNullOrWhiteSpace(model.Id) ? Guid.NewGuid().ToString() : model.Id,
-                Gender = Enum.TryParse<AdministrativeGender>(model.Gender, true, out var g) ? g : null,
-                BirthDate = model.BirthDate,
+                Id = Guid.NewGuid().ToString(),
+                Gender = gender,
+                BirthDate = model.BirthDate
             };
 
-            if (model?.Name.Any() == true)
+            if (model.Name?.Any() == true)
             {
-
                 fhirPatient.Name = model.Name.Select(n => new HumanName
                 {
                     Family = n.Family,
@@ -39,10 +68,13 @@ namespace FHIR_IHE_API.Mapper
         }
 
 
+
         // Map from FHIR Patient to DB Entity
 
         public static Patient ToEntity(FHIRPatient fhirPatient)
         {
+            ArgumentNullException.ThrowIfNull(fhirPatient);
+
             return new Patient
             {
                 FhirId = fhirPatient.Id,
@@ -82,22 +114,87 @@ namespace FHIR_IHE_API.Mapper
             return patient;
         }
 
-        public static void UpdateEntity(Patient entity, PatientModel model, string id)
+        public static void UpdateEntity(
+            Patient entity,
+            PatientModel model,
+            string id)
         {
-            var fhirPatient = ToFhirFromModel(model);
+            ArgumentNullException.ThrowIfNull(entity);
+            ArgumentNullException.ThrowIfNull(model);
 
+            // 1. Restore the existing FHIR Patient.
+            FHIRPatient fhirPatient;
+
+            if (!string.IsNullOrWhiteSpace(entity.JsonData))
+            {
+                fhirPatient = _parser.Parse<FHIRPatient>(
+                    entity.JsonData);
+            }
+            else
+            {
+                fhirPatient = ToFhirFromEntity(entity);
+            }
+
+            // 2. Preserve the existing FHIR resource ID.
             fhirPatient.Id = id;
 
-            entity.FhirId = fhirPatient.Id;
-            entity.FamilyName = model.Name?.FirstOrDefault()?.Family;
-            entity.GivenName = model.Name?.FirstOrDefault()?.Given.FirstOrDefault();
-            entity.Gender = model.Gender;
-            entity.BirthDate = DateTime.TryParse(model.BirthDate, out var birthDate)
-                ? birthDate 
-                : (DateTime?)null;
+            // 3. Update the fields supported by PatientModel.
+            fhirPatient.Name = model.Name?
+                .Select(n => new HumanName
+                {
+                    Family = n.Family,
+                    Given = n.Given
+                })
+                .ToList() ?? new List<HumanName>();
 
-            entity.JsonData = _serializer.SerializeToString(fhirPatient);
+            fhirPatient.Gender =
+                Enum.Parse<AdministrativeGender>(
+                    model.Gender!,
+                    true);
+
+            fhirPatient.BirthDate = model.BirthDate;
+
+            // 4. Synchronize the database columns.
+            entity.FhirId = fhirPatient.Id;
+
+            entity.FamilyName =
+                fhirPatient.Name.FirstOrDefault()?.Family;
+
+            entity.GivenName =
+                fhirPatient.Name.FirstOrDefault()?
+                    .Given?.FirstOrDefault();
+
+            entity.Gender =
+                fhirPatient.Gender?.ToString();
+
+            entity.BirthDate =
+                DateTime.TryParseExact(
+                    fhirPatient.BirthDate,
+                    "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out var birthDate)
+                        ? birthDate
+                        : null;
+
+            // 5. Serialize the updated FHIR Patient.
+            entity.JsonData =
+                _serializer.SerializeToString(fhirPatient);
         }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
         public static Bundle ToBundle(IEnumerable<Patient> entities)

@@ -113,6 +113,9 @@ namespace FHIR_IHE_API.Services
 
                 _context.AuditLogs.Add(auditing);
                 await _context.SaveChangesAsync();
+
+                // Prevent AuditMiddleware from logging the same request again.
+                httpContext.Items[AuditAlreadyLoggedKey] = true;
             }
             catch (Exception ex)
             {

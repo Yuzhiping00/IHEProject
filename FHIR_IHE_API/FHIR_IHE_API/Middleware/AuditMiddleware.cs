@@ -1,4 +1,5 @@
-﻿using FHIR_IHE_API.Services;
+﻿
+using FHIR_IHE_API.Services;
 
 namespace FHIR_IHE_API.Middleware
 {
@@ -15,7 +16,9 @@ namespace FHIR_IHE_API.Middleware
             _logger = logger;
         }
 
-        public async Task InvokeAsync(HttpContext context, AuditService auditService)
+        public async Task InvokeAsync(
+            HttpContext context,
+            AuditService auditService)
         {
             try
             {
@@ -25,13 +28,26 @@ namespace FHIR_IHE_API.Middleware
             {
                 // Login is audited directly inside AccountController
                 // because the JWT does not exist yet at middleware level.
-                if (context.Request.Path.StartsWithSegments("/api") &&
-                    !context.Request.Path.StartsWithSegments("/api/account/login") &&
-                    !context.Items.ContainsKey(AuditService.AuditAlreadyLoggedKey))
+                var isLoginRequest =
+                    context.Request.Path.StartsWithSegments(
+                        "/api/account/login");
+
+                var alreadyLogged =
+                    context.Items.ContainsKey(
+                        AuditService.AuditAlreadyLoggedKey);
+
+                if (ShouldAudit(context.Request) &&
+                    !isLoginRequest &&
+                    !alreadyLogged)
                 {
-                    var resourceType = context.Request.RouteValues["controller"]?.ToString();
-                    var resourceId = context.Request.RouteValues["id"]?.ToString();
-                    var action = GetAuditAction(context.Request.Method);
+                    var resourceType =
+                        context.Request.RouteValues["controller"]?.ToString();
+
+                    var resourceId =
+                        context.Request.RouteValues["id"]?.ToString();
+
+                    var action =
+                        GetAuditAction(context.Request.Method);
 
                     try
                     {
@@ -40,8 +56,7 @@ namespace FHIR_IHE_API.Middleware
                             action,
                             resourceType,
                             resourceId,
-                            context.Response.StatusCode
-                        );
+                            context.Response.StatusCode);
                     }
                     catch (Exception ex)
                     {
@@ -49,11 +64,16 @@ namespace FHIR_IHE_API.Middleware
                             ex,
                             "Failed to create audit log for {Method} {Path}",
                             context.Request.Method,
-                            context.Request.Path
-                        );
+                            context.Request.Path);
                     }
                 }
             }
+        }
+
+        private static bool ShouldAudit(HttpRequest request)
+        {
+            return request.Path.StartsWithSegments("/api") ||
+                   request.Path.StartsWithSegments("/Patient");
         }
 
         private static string GetAuditAction(string httpMethod)
