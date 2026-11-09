@@ -15,6 +15,7 @@ namespace FHIR_IHE_API.Mapper
     public class PatientMapper
     {
         private static readonly FhirJsonSerializer _serializer = new FhirJsonSerializer();
+        private static readonly FhirJsonParser _parser = new FhirJsonParser();
 
         // Map Vue PatientModel to FHIR Patient
 
@@ -113,22 +114,87 @@ namespace FHIR_IHE_API.Mapper
             return patient;
         }
 
-        public static void UpdateEntity(Patient entity, PatientModel model, string id)
+        public static void UpdateEntity(
+            Patient entity,
+            PatientModel model,
+            string id)
         {
-            var fhirPatient = ToFhirFromModel(model);
+            ArgumentNullException.ThrowIfNull(entity);
+            ArgumentNullException.ThrowIfNull(model);
 
+            // 1. Restore the existing FHIR Patient.
+            FHIRPatient fhirPatient;
+
+            if (!string.IsNullOrWhiteSpace(entity.JsonData))
+            {
+                fhirPatient = _parser.Parse<FHIRPatient>(
+                    entity.JsonData);
+            }
+            else
+            {
+                fhirPatient = ToFhirFromEntity(entity);
+            }
+
+            // 2. Preserve the existing FHIR resource ID.
             fhirPatient.Id = id;
 
-            entity.FhirId = fhirPatient.Id;
-            entity.FamilyName = model.Name?.FirstOrDefault()?.Family;
-            entity.GivenName = model.Name?.FirstOrDefault()?.Given.FirstOrDefault();
-            entity.Gender = model.Gender;
-            entity.BirthDate = DateTime.TryParse(model.BirthDate, out var birthDate)
-                ? birthDate 
-                : (DateTime?)null;
+            // 3. Update the fields supported by PatientModel.
+            fhirPatient.Name = model.Name?
+                .Select(n => new HumanName
+                {
+                    Family = n.Family,
+                    Given = n.Given
+                })
+                .ToList() ?? new List<HumanName>();
 
-            entity.JsonData = _serializer.SerializeToString(fhirPatient);
+            fhirPatient.Gender =
+                Enum.Parse<AdministrativeGender>(
+                    model.Gender!,
+                    true);
+
+            fhirPatient.BirthDate = model.BirthDate;
+
+            // 4. Synchronize the database columns.
+            entity.FhirId = fhirPatient.Id;
+
+            entity.FamilyName =
+                fhirPatient.Name.FirstOrDefault()?.Family;
+
+            entity.GivenName =
+                fhirPatient.Name.FirstOrDefault()?
+                    .Given?.FirstOrDefault();
+
+            entity.Gender =
+                fhirPatient.Gender?.ToString();
+
+            entity.BirthDate =
+                DateTime.TryParseExact(
+                    fhirPatient.BirthDate,
+                    "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out var birthDate)
+                        ? birthDate
+                        : null;
+
+            // 5. Serialize the updated FHIR Patient.
+            entity.JsonData =
+                _serializer.SerializeToString(fhirPatient);
         }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
         public static Bundle ToBundle(IEnumerable<Patient> entities)

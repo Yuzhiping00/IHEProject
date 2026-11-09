@@ -182,15 +182,23 @@ namespace FHIR_IHE_API.Controllers
         // PUT: api/patient/id/update
         [Authorize(Policy = "ProviderOnly")]
         [HttpPut("{id}/update")]
+        [Produces("application/fhir+json")]
         public async Task<IActionResult> PutPatient(string id, [FromBody] PatientModel? updatedPatient)
         {
+            // 1. validate the route ID
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                return BadRequest();
+            }
+
+            // 2. validate the request body
             if (updatedPatient == null)
             {
                 return BadRequest(new OperationOutcome
                 {
                     Issue = new List<OperationOutcome.IssueComponent>
                     {
-                        new OperationOutcome.IssueComponent
+                        new()
                         {
                             Severity = OperationOutcome.IssueSeverity.Error,
                             Code = OperationOutcome.IssueType.Invalid,
@@ -200,6 +208,8 @@ namespace FHIR_IHE_API.Controllers
                 });
             }
 
+            // 2. find the existing patient
+
             var entity = await _context.Patients.FirstOrDefaultAsync(p => p.FhirId == id);
 
             if (entity == null)
@@ -207,18 +217,32 @@ namespace FHIR_IHE_API.Controllers
                 return NotFound();
             }
 
-            PatientMapper.UpdateEntity(entity, updatedPatient, id);
+            try
+            {
+                // 4. update the existing patient
+                PatientMapper.UpdateEntity(entity, updatedPatient, id);
 
-            //var fhirPatient = PatientMapper.ToFhirFromEntity(entity);
+                // 5. save changes to the database
+                await _context.SaveChangesAsync();
 
-            var parser = new FhirJsonParser();
-            var fhirPatient = parser.Parse<FHIRPatient>(entity.JsonData);
+                // 6. restore the updated FHIR Patient from the entity
+                var parser = new FhirJsonParser();
 
-            await _context.SaveChangesAsync();
+                var fhirPatient = parser.Parse<FHIRPatient>(entity.JsonData!);
 
-            await _auditService.LogPatientAccessAsync(HttpContext, "UPDATE", entity.Id, entity.FhirId,
-                StatusCodes.Status200OK);
-            return new FhirResult(fhirPatient);
+                // 7. record the successful update
+                await _auditService.LogPatientAccessAsync(HttpContext, "UPDATE", entity.Id, entity.FhirId,
+                    StatusCodes.Status200OK);
+
+                // 8. return the updated FHIR Patient
+                return new FhirResult(fhirPatient);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to update Patient resource. Patient ID: {Id}",id);
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { error = "An error occurred while updating the Patient resource." });
+            }
         }
 
         //DELETE: api/patient/5
