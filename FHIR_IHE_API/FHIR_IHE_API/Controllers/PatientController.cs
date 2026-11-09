@@ -34,6 +34,79 @@ namespace FHIR_IHE_API.Controllers
             _auditService = auditService;
         }
 
+        [AllowAnonymous]
+        [HttpGet("/api/metadata")]
+        [Produces("application/fhir+json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+
+        public IActionResult GetCapabilityStatement()
+        {
+            // Build the canonical FHIR server base URL.
+            var fhirBaseUrl = GetFhirBaseUrl();
+
+            // Describe the FHIR capabilities currently implemented by this server.
+            var capabilityStatementJson = new
+            {
+                resourceType = "CapabilityStatement",
+
+                status = "active",
+
+                date = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+
+                kind = "instance",
+
+                software = new
+                {
+                    name = "FHIR_IHE_API",
+                    version = "1.0.0"
+                },
+
+                implementation = new
+                {
+                    description = "FHIR_IHE_API FHIR R4 Server",
+                    url = fhirBaseUrl
+                },
+
+                fhirVersion = "4.0.1",
+
+                format = new[]
+                {
+                    "json"
+                },
+
+                rest = new[]
+                {
+                    new
+                    {
+                        mode = "server",
+
+                        resource = new[]
+                        {
+                            new
+                            {
+                                type = "Patient",
+
+                                interaction = new[]
+                                {
+                                    new { code = "read" },
+                                    new { code = "search-type" },
+                                    new { code = "create" },
+                                    new { code = "update" },
+                                    new { code = "delete" }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            // Convert the capability statement JSON into a FHIR resource.
+            var json = JsonConvert.SerializeObject(capabilityStatementJson);
+
+            var capabilityStatement = _parser.Parse<CapabilityStatement>(json);
+
+            return new FhirResult(capabilityStatement);
+        }
 
         //GET: api/patient
         [Authorize(Policy = "ProviderOnly")]
@@ -50,11 +123,21 @@ namespace FHIR_IHE_API.Controllers
             var bundle = new Bundle
             {
                 Type = Bundle.BundleType.Searchset,
-                Total = entities.Count,
-                Entry = new List<Bundle.EntryComponent>()
-            }; 
+                Total = entities.Count
+            };
 
-            foreach(var entity in entities)
+            // Add the self link for the current search request.
+            var selfUrl =
+                $"{Request.Scheme}://{Request.Host}" +
+                $"{Request.PathBase}{Request.Path}{Request.QueryString}";
+
+            bundle.Link.Add(new Bundle.LinkComponent
+            {
+                Relation = "self",
+                Url = selfUrl
+            });
+
+            foreach (var entity in entities)
             {
                 FHIRPatient fhirPatient;
 
@@ -69,7 +152,7 @@ namespace FHIR_IHE_API.Controllers
                     return StatusCode(StatusCodes.Status500InternalServerError);
                 }
 
-                var fullUrl = $"{Request.Scheme}://{Request.Host}" + $"{Request.PathBase}/Patient/" + Uri.EscapeDataString(entity.FhirId);
+                var fullUrl = GetFhirPatientUrl(entity.FhirId);
 
                 bundle.Entry.Add(new Bundle.EntryComponent
                 {
@@ -110,13 +193,7 @@ namespace FHIR_IHE_API.Controllers
                     StatusCodes.Status201Created);
 
                 // 5. Build the FHIR resource location.
-                var location =
-                    $"{Request.Scheme}://{Request.Host}" +
-                    $"{Request.PathBase}/Patient/" +
-                    Uri.EscapeDataString(entity.FhirId!);
-
-                // 6. Return HTTP 201 Created.
-                Response.Headers.Location = location;
+                Response.Headers.Location = GetFhirPatientUrl(fhirPatient.Id);
 
                 return new FhirResult(fhirPatient, StatusCodes.Status201Created);
             }
@@ -201,12 +278,7 @@ namespace FHIR_IHE_API.Controllers
                     StatusCodes.Status201Created);
 
                 // 7. Build the resource location.
-                var location =
-                    $"{Request.Scheme}://{Request.Host}" +
-                    $"{Request.PathBase}/api/Patient/" +
-                    Uri.EscapeDataString(entity.FhirId);
-
-                Response.Headers.Location = location;
+                Response.Headers.Location = GetFhirPatientUrl(fhirPatient.Id);
 
                 // 8. Return the created FHIR Patient.
                 return new FhirResult(
@@ -674,5 +746,15 @@ namespace FHIR_IHE_API.Controllers
             return new FhirResult(outcome, statusCode);
         }
 
+        private string GetFhirBaseUrl()
+        {
+            return $"{Request.Scheme}://{Request.Host}" +
+                   $"{Request.PathBase}/api";
+        }
+
+        private string GetFhirPatientUrl(string fhirId)
+        {
+            return $"{GetFhirBaseUrl()}/Patient/" + Uri.EscapeDataString(fhirId);
+        }
     }
 }
