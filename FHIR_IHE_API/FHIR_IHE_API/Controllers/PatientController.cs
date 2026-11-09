@@ -118,14 +118,17 @@ namespace FHIR_IHE_API.Controllers
             [FromQuery(Name = "_id")] string? fhirId, 
             [FromQuery(Name = "name")] string? name,
             [FromQuery(Name = "gender")] string? gender,
-            [FromQuery(Name = "birthdate")] string? birthdate)
+            [FromQuery(Name = "birthdate")] string? birthdate,
+            [FromQuery(Name = "_count")] string? count,
+            [FromQuery(Name = "_page")] string? page
+        )
         {
             // ----------------------------------------
             // 1. Validate supported search parameters
             // ----------------------------------------
 
             var supportedParameters = new HashSet<string>(
-                new[] { "_id", "name", "gender", "birthdate" },
+                new[] { "_id", "name", "gender", "birthdate",  "_count", "_page"},
                 StringComparer.OrdinalIgnoreCase);
 
             var unsupportedParameter = Request.Query.Keys
@@ -168,6 +171,22 @@ namespace FHIR_IHE_API.Controllers
             }
 
             if (!TryGetSearchParameter("birthdate", birthdate, out birthdate, out error))
+            {
+                return CreateFhirOperationOutcome(
+                    error!,
+                    OperationOutcome.IssueType.Invalid,
+                    StatusCodes.Status400BadRequest);
+            }
+
+            if (!TryGetSearchParameter("_count", count, out count, out error))
+            {
+                return CreateFhirOperationOutcome(
+                    error!,
+                    OperationOutcome.IssueType.Invalid,
+                    StatusCodes.Status400BadRequest);
+            }
+
+            if (!TryGetSearchParameter("_page", page, out page, out error))
             {
                 return CreateFhirOperationOutcome(
                     error!,
@@ -233,7 +252,44 @@ namespace FHIR_IHE_API.Controllers
             }
 
             // ----------------------------------------
-            // 6. Build database query
+            // 6. Validate Pagination Parameters
+            // ----------------------------------------
+
+            const int defaultPageSize = 20;
+            const int maximumPageSize = 100;
+
+            var pageSize = defaultPageSize;
+            var pageNumber = 1;
+
+            // validate _count
+            if (count != null)
+            {
+                if (!int.TryParse(count, out pageSize) || pageSize < 1 || pageSize > maximumPageSize)
+                {
+                    return CreateFhirOperationOutcome(
+                        $"Invalid _count value. The value must be between 1 and {maximumPageSize}.",
+                        OperationOutcome.IssueType.Invalid, StatusCodes.Status400BadRequest);
+                }
+            }
+
+            // validate _page
+
+            if (page != null)
+            {
+                if (!int.TryParse(page, out pageNumber) || pageNumber < 1)
+                {
+                    return CreateFhirOperationOutcome(
+                        $"Invalid page value. The value must be a positive integer greater than or equal to {pageNumber}.",
+                        OperationOutcome.IssueType.Invalid, StatusCodes.Status400BadRequest);
+                }
+            }
+
+            // Calculate the number of records to skip.
+            var offset = (pageNumber - 1) * pageSize;
+
+
+            // ----------------------------------------
+            // 7. Build database query
             // ----------------------------------------
 
             IQueryable<Models.Patient> query = _context.Patients.AsNoTracking();
@@ -281,21 +337,29 @@ namespace FHIR_IHE_API.Controllers
 
 
             // ----------------------------------------
-            // 7. Retrieve filtered Patient records
+            // 8. Retrieve total count and paged Patient records
             // ----------------------------------------
 
+            // Count all records that match the search criteria.
+            // This value represents the total number of matching resources,
+            // not the number of resources returned on the current page.
+
+            var totalCount = await query.CountAsync();
+
+            // Retrieve only the records required for the current page.
             var entities = await query
                 .OrderBy(p => p.FhirId)
+                .Skip(offset)
+                .Take(pageSize)
                 .ToListAsync();
 
-
             // ----------------------------------------
-            // 8. Create FHIR Searchset Bundle
+            // 9. Create FHIR Searchset Bundle
             // ----------------------------------------
             var bundle = new Bundle
             {
                 Type = Bundle.BundleType.Searchset,
-                Total = entities.Count
+                Total = totalCount
             };
 
             // Add the self link for the current search request.
@@ -309,8 +373,36 @@ namespace FHIR_IHE_API.Controllers
                 Url = selfUrl
             });
 
+            // Add the next link if there are more records to retrieve.
+            if (offset + entities.Count < totalCount)
+            {
+                var nextPageNumber = pageNumber + 1;
+
+                var nextUrl = BuildPaginationUrl(nextPageNumber, pageSize);
+                
+                bundle.Link.Add(new Bundle.LinkComponent
+                {
+                    Relation = "next",
+                    Url = nextUrl
+                });
+            }
+
+            // Add the previous link if this is not the first page.
+            if (pageNumber > 1)
+            {
+                var previousPageNumber = Math.Max(1, pageNumber - 1);
+
+                var previousUrl = BuildPaginationUrl(previousPageNumber, pageSize);
+
+                bundle.Link.Add(new Bundle.LinkComponent
+                {
+                    Relation = "previous",
+                    Url = previousUrl
+                });
+            }
+
             // ----------------------------------------
-            // 9. Add Patient resources to Bundle
+            // 10. Add Patient resources to Bundle
             // ----------------------------------------
 
             foreach (var entity in entities)
@@ -342,7 +434,7 @@ namespace FHIR_IHE_API.Controllers
             }
 
             // ----------------------------------------
-            // 10. Audit successful search
+            // 11. Audit successful search
             // ----------------------------------------
 
             await _auditService.LogAsync(HttpContext, "READ", "Patient", null, StatusCodes.Status200OK);
@@ -970,6 +1062,39 @@ namespace FHIR_IHE_API.Controllers
             value = boundValue.Trim();
 
             return true;
+        }
+
+        // Helper method to build pagination URLs for the next and previous pages.
+        private string BuildPaginationUrl(int targetPage, int pageSize)
+        {
+            var queryParameters = new List<string>();
+
+            foreach (var queryParameter in Request.Query)
+            {
+                var key = queryParameter.Key;
+
+                // Pagination parameters are rebuilt below.
+                if (key.Equals("_page", StringComparison.OrdinalIgnoreCase) ||
+                    key.Equals("_count", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                foreach (var value in queryParameter.Value)
+                {
+                    queryParameters.Add(
+                        $"{Uri.EscapeDataString(key)}={Uri.EscapeDataString(value)}");
+                }
+            }
+
+            queryParameters.Add($"_count={pageSize}");
+            queryParameters.Add($"_page={targetPage}");
+
+            var queryString = string.Join("&", queryParameters);
+
+            return
+                $"{Request.Scheme}://{Request.Host}" +
+                $"{Request.PathBase}{Request.Path}?{queryString}";
         }
     }
 }
