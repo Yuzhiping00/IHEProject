@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using FHIRPatient = Hl7.Fhir.Model.Patient;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.Text.RegularExpressions;
 
 namespace FHIR_IHE_API.Controllers
 {
@@ -469,6 +470,83 @@ namespace FHIR_IHE_API.Controllers
             }
 
         }
+
+
+        // FHIR R4 Delete: DELETE /api/Patient/{id}
+        [Authorize(Policy = "ProviderOnly")]
+        [HttpDelete("{id}")]
+        [Produces("application/fhir+json")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> DeleteFhirPatient(string id)
+        {
+            // Validate the FHIR resource ID.
+            if (string.IsNullOrWhiteSpace(id) ||
+                !Regex.IsMatch(id, @"^[A-Za-z0-9.-]{1,64}$"))
+            {
+                return CreateFhirOperationOutcome(
+                    "The Patient resource ID must contain 1 to 64 characters and only letters, numbers, hyphens, or periods.",
+                    OperationOutcome.IssueType.Invalid,
+                    StatusCodes.Status400BadRequest);
+            }
+
+            // Find the existing Patient using its FHIR ID.
+            var entity = await _context.Patients
+                .FirstOrDefaultAsync(p => p.FhirId == id);
+
+            // Return 404 when the Patient does not exist.
+            if (entity == null)
+            {
+                return CreateFhirOperationOutcome(
+                    "Patient resource was not found.",
+                    OperationOutcome.IssueType.NotFound,
+                    StatusCodes.Status404NotFound);
+            }
+
+            // Preserve identifiers before deleting the entity.
+            var patientDatabaseId = entity.Id;
+            var patientFhirId = entity.FhirId;
+
+            try
+            {
+                // Remove the Patient from the database.
+                _context.Patients.Remove(entity);
+
+                await _context.SaveChangesAsync();
+
+                // Record the successful deletion in the audit log.
+                await _auditService.LogPatientAccessAsync(
+                    HttpContext,
+                    "DELETE",
+                    patientDatabaseId,
+                    patientFhirId,
+                    StatusCodes.Status204NoContent);
+
+                _logger.LogInformation(
+                    "FHIR Patient deleted successfully. ID: {PatientId}",
+                    patientFhirId);
+
+                // FHIR Delete returns 204 with an empty response body.
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Failed to delete FHIR Patient. ID: {PatientId}",
+                    patientFhirId);
+
+                return CreateFhirOperationOutcome(
+                    "An internal error occurred while deleting the Patient resource.",
+                    OperationOutcome.IssueType.Exception,
+                    StatusCodes.Status500InternalServerError);
+            }
+        }
+
 
         //DELETE: api/patient/5
         [Authorize(Policy = "ProviderOnly")]
