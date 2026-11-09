@@ -248,8 +248,19 @@ namespace FHIR_IHE_API.Controllers
         //DELETE: api/patient/5
         [Authorize(Policy = "ProviderOnly")]
         [HttpDelete("delete/{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> DeletePatient(string id)
         {
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                return BadRequest();
+            }
+
             var entity = await _context.Patients.FirstOrDefaultAsync(p => p.FhirId == id);
 
             if (entity == null)
@@ -257,17 +268,33 @@ namespace FHIR_IHE_API.Controllers
                 return NotFound();
             }
 
-            var targetPatientId = entity.Id;
-            var resourceId = entity.FhirId;
+            try
+            {
+                // Preserve audit information before deleting the entity.
+                var patientDbId = entity.Id;
+                var patientFhirId = entity.FhirId;
 
-            _context.Patients.Remove(entity);
+                _context.Patients.Remove(entity);
 
-            await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync();
 
-            await _auditService.LogPatientAccessAsync(HttpContext, "DELETE", targetPatientId, resourceId,
-                StatusCodes.Status200OK);
+                await _auditService.LogPatientAccessAsync(
+                    HttpContext,
+                    "DELETE",
+                    patientDbId,
+                    patientFhirId,
+                    StatusCodes.Status204NoContent);
 
-            return NoContent();
+                return NoContent();
+            }
+
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete Patient resource. Patient ID: {Id}", id);
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { error = "An error occurred while deleting the Patient resource." });
+            }
+
         }
 
         [Authorize(Policy = "PatientOnly")]
