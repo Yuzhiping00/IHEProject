@@ -538,28 +538,24 @@ namespace FHIR_IHE_API.Controllers
             // Add the next link if there are more records to retrieve.
             if (offset + entities.Count < totalCount)
             {
-                var nextPageNumber = pageNumber + 1;
+                var nextPage = pageNumber + 1;
 
-                var nextUrl = BuildPaginationUrl(nextPageNumber, pageSize);
-                
                 bundle.Link.Add(new Bundle.LinkComponent
                 {
                     Relation = "next",
-                    Url = nextUrl
+                    Url = BuildPaginationUrl(nextPage, pageSize)
                 });
             }
 
-            // Add the previous link if this is not the first page.
-            if (pageNumber > 1)
+            // Add the previous page link when the current page has records.
+            if (pageNumber > 1 && entities.Count > 0)
             {
-                var previousPageNumber = Math.Max(1, pageNumber - 1);
-
-                var previousUrl = BuildPaginationUrl(previousPageNumber, pageSize);
+                var previousPage = pageNumber - 1;
 
                 bundle.Link.Add(new Bundle.LinkComponent
                 {
                     Relation = "previous",
-                    Url = previousUrl
+                    Url = BuildPaginationUrl(previousPage, pageSize)
                 });
             }
 
@@ -590,7 +586,12 @@ namespace FHIR_IHE_API.Controllers
                 bundle.Entry.Add(new Bundle.EntryComponent
                 {
                     FullUrl = fullUrl,
-                    Resource = fhirPatient
+                    Resource = fhirPatient, 
+
+                    Search = new Bundle.SearchComponent
+                    {
+                        Mode = Bundle.SearchEntryMode.Match
+                    }
                 });
 
             }
