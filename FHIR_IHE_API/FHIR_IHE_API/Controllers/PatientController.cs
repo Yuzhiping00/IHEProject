@@ -11,6 +11,7 @@ using FHIRPatient = Hl7.Fhir.Model.Patient;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Text.RegularExpressions;
+using System.Globalization;
 
 namespace FHIR_IHE_API.Controllers
 {
@@ -113,13 +114,184 @@ namespace FHIR_IHE_API.Controllers
         [HttpGet]
         [HttpGet("/Patient")]
         [Produces("application/fhir+json")]
-        public async Task<IActionResult> GetAllPatients()
+        public async Task<IActionResult> GetAllPatients(
+            [FromQuery(Name = "_id")] string? fhirId, 
+            [FromQuery(Name = "name")] string? name,
+            [FromQuery(Name = "gender")] string? gender,
+            [FromQuery(Name = "birthdate")] string? birthdate)
         {
-            var entities = await _context.Patients
-                .AsNoTracking()
+            // ----------------------------------------
+            // 1. Validate supported search parameters
+            // ----------------------------------------
+
+            var supportedParameters = new HashSet<string>(
+                new[] { "_id", "name", "gender", "birthdate" },
+                StringComparer.OrdinalIgnoreCase);
+
+            var unsupportedParameter = Request.Query.Keys
+                .FirstOrDefault(key => !supportedParameters.Contains(key));
+
+            if (unsupportedParameter != null)
+            {
+                return CreateFhirOperationOutcome(
+                    $"Search parameter '{unsupportedParameter}' is not supported.",
+                    OperationOutcome.IssueType.NotSupported,
+                    StatusCodes.Status400BadRequest);
+            }
+
+            // ----------------------------------------
+            // 2. Read search parameter values
+            // ----------------------------------------
+
+            if (!TryGetSearchParameter("_id", fhirId, out fhirId, out var error))
+            {
+                return CreateFhirOperationOutcome(
+                    error!,
+                    OperationOutcome.IssueType.Invalid,
+                    StatusCodes.Status400BadRequest);
+            }
+
+            if (!TryGetSearchParameter("name", name, out name, out error))
+            {
+                return CreateFhirOperationOutcome(
+                    error!,
+                    OperationOutcome.IssueType.Invalid,
+                    StatusCodes.Status400BadRequest);
+            }
+
+            if (!TryGetSearchParameter("gender", gender, out gender, out error))
+            {
+                return CreateFhirOperationOutcome(
+                    error!,
+                    OperationOutcome.IssueType.Invalid,
+                    StatusCodes.Status400BadRequest);
+            }
+
+            if (!TryGetSearchParameter("birthdate", birthdate, out birthdate, out error))
+            {
+                return CreateFhirOperationOutcome(
+                    error!,
+                    OperationOutcome.IssueType.Invalid,
+                    StatusCodes.Status400BadRequest);
+            }
+
+            // ----------------------------------------
+            // 3. Validate FHIR ID
+            // ----------------------------------------
+            if (fhirId != null &&
+                !Regex.IsMatch(fhirId, @"^[A-Za-z0-9.-]{1,64}$"))
+            {
+                return CreateFhirOperationOutcome(
+                    "Invalid FHIR Patient ID.",
+                    OperationOutcome.IssueType.Invalid,
+                    StatusCodes.Status400BadRequest);
+            }
+
+            // ----------------------------------------
+            // 4. Validate Gender
+            // ----------------------------------------
+
+            var validGenders = new[]
+            {
+                "male",
+                "female",
+                "other",
+                "unknown"
+            };
+
+            if (gender != null && !validGenders.Contains(gender, StringComparer.OrdinalIgnoreCase))
+            {
+                return CreateFhirOperationOutcome(
+                    "Invalid gender. Supported values are male, female, other and unknown.",
+                    OperationOutcome.IssueType.Invalid,
+                    StatusCodes.Status400BadRequest);
+            }
+
+            // ----------------------------------------
+            // 5. Validate BirthDate
+            // ----------------------------------------
+
+            DateTime? parsedBirthDate = null;
+
+
+            if (birthdate != null)
+            {
+                if (!DateTime.TryParseExact(
+                        birthdate,
+                        "yyyy-MM-dd",
+                        CultureInfo.InvariantCulture,
+                        DateTimeStyles.None,
+                        out var date))
+                {
+                    return CreateFhirOperationOutcome(
+                        "Invalid birthdate. Expected format is yyyy-MM-dd.",
+                        OperationOutcome.IssueType.Invalid,
+                        StatusCodes.Status400BadRequest);
+                }
+
+                parsedBirthDate = date.Date;
+            }
+
+            // ----------------------------------------
+            // 6. Build database query
+            // ----------------------------------------
+
+            IQueryable<Models.Patient> query = _context.Patients.AsNoTracking();
+
+            // Search by FHIR Patient ID.
+            if (fhirId != null)
+            {
+                query = query.Where(p => p.FhirId == fhirId);
+            }
+
+            // Search by Family Name or Given Name.
+            if (name != null)
+            {
+                var searchName = name.ToLower();
+
+                query = query.Where(p =>
+                    (p.FamilyName != null &&
+                     p.FamilyName.ToLower().Contains(searchName))
+                    ||
+                    (p.GivenName != null &&
+                     p.GivenName.ToLower().Contains(searchName)));
+            }
+
+            // Search by Gender.
+            if (gender != null)
+            {
+                var searchGender = gender.ToLower();
+
+                query = query.Where(p =>
+                    p.Gender != null &&
+                    p.Gender.ToLower() == searchGender);
+            }
+
+            // Search by BirthDate.
+            if (parsedBirthDate.HasValue)
+            {
+                var startDate = parsedBirthDate.Value;
+                var endDate = startDate.AddDays(1);
+
+                query = query.Where(p =>
+                    p.BirthDate.HasValue &&
+                    p.BirthDate.Value >= startDate &&
+                    p.BirthDate.Value < endDate);
+            }
+
+
+            // ----------------------------------------
+            // 7. Retrieve filtered Patient records
+            // ----------------------------------------
+
+            var entities = await query
                 .OrderBy(p => p.FhirId)
                 .ToListAsync();
 
+
+            // ----------------------------------------
+            // 8. Create FHIR Searchset Bundle
+            // ----------------------------------------
             var bundle = new Bundle
             {
                 Type = Bundle.BundleType.Searchset,
@@ -137,6 +309,10 @@ namespace FHIR_IHE_API.Controllers
                 Url = selfUrl
             });
 
+            // ----------------------------------------
+            // 9. Add Patient resources to Bundle
+            // ----------------------------------------
+
             foreach (var entity in entities)
             {
                 FHIRPatient fhirPatient;
@@ -149,7 +325,10 @@ namespace FHIR_IHE_API.Controllers
                 {
                     _logger.LogError(ex, "Failed to parse Patient JSON, Patient ID: {Id}", entity.FhirId);
 
-                    return StatusCode(StatusCodes.Status500InternalServerError);
+                    return CreateFhirOperationOutcome(
+                        "Failed to parse a Patient resource stored on the server.",
+                        OperationOutcome.IssueType.Exception,
+                        StatusCodes.Status500InternalServerError);
                 }
 
                 var fullUrl = GetFhirPatientUrl(entity.FhirId);
@@ -161,6 +340,10 @@ namespace FHIR_IHE_API.Controllers
                 });
 
             }
+
+            // ----------------------------------------
+            // 10. Audit successful search
+            // ----------------------------------------
 
             await _auditService.LogAsync(HttpContext, "READ", "Patient", null, StatusCodes.Status200OK);
 
@@ -755,6 +938,38 @@ namespace FHIR_IHE_API.Controllers
         private string GetFhirPatientUrl(string fhirId)
         {
             return $"{GetFhirBaseUrl()}/Patient/" + Uri.EscapeDataString(fhirId);
+        }
+
+        // Helper method to extract a single search parameter from the query string.
+        private bool TryGetSearchParameter(string parameterName,
+            string? boundValue,
+            out string? value,
+            out string? error)
+        {
+            value = null;
+            error = null;
+
+            if (!Request.Query.TryGetValue(parameterName, out var values))
+            {
+                return true;
+            }
+
+            if (values.Count != 1)
+            {
+                error = $"Search parameter '{parameterName}' must have exactly one value.";
+
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(boundValue))
+            {
+                error = $"Search parameter '{parameterName}' cannot be empty.";
+                return false;
+            }
+
+            value = boundValue.Trim();
+
+            return true;
         }
     }
 }
