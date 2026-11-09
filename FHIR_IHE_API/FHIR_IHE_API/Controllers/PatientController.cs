@@ -343,6 +343,133 @@ namespace FHIR_IHE_API.Controllers
             }
         }
 
+        // FHIR R4 Update: PUT /api/Patient/{id}
+        [Authorize(Policy = "ProviderOnly")]
+        [HttpPut("{id}")]
+        [Consumes("application/fhir+json", "application/json")]
+        [Produces("application/fhir+json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+
+        public async Task<IActionResult> UpdateFhirPatient(string id, [FromBody] JObject? resourceJson)
+        {
+            // Validate the URL ID.
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                return CreateFhirOperationOutcome(
+                    "Patient ID in the request URL is required.",
+                    OperationOutcome.IssueType.Invalid,
+                    StatusCodes.Status400BadRequest);
+            }
+
+            // Validate the request body.
+            if (resourceJson == null)
+            {
+                return CreateFhirOperationOutcome(
+                    "Request body is required.",
+                    OperationOutcome.IssueType.Invalid,
+                    StatusCodes.Status400BadRequest);
+            }
+
+            // Get the FHIR resource ID from the request body.
+            string? bodyId = resourceJson.Value<string>("id");
+
+            // The resource ID must match the URL ID.
+            if (string.IsNullOrWhiteSpace(bodyId) ||
+                !string.Equals(bodyId, id, StringComparison.Ordinal))
+            {
+                return CreateFhirOperationOutcome(
+                    "The Patient resource ID must match the ID in the request URL.",
+                    OperationOutcome.IssueType.Invalid,
+                    StatusCodes.Status400BadRequest);
+            }
+
+            FHIRPatient fhirPatient;
+
+            try
+            {
+                // Parse the incoming JSON into a FHIR Patient resource.
+                string json = resourceJson.ToString(Formatting.None);
+
+                fhirPatient = _parser.Parse<FHIRPatient>(json);
+            }
+
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Failed to parse FHIR Patient resource. Patient ID: {id}",
+                    id);
+
+                return CreateFhirOperationOutcome(
+                    "The supplied resource is not a valid FHIR Patient resource.",
+                    OperationOutcome.IssueType.Invalid,
+                    StatusCodes.Status400BadRequest);
+            }
+
+            // Find the existing Patient entity using its FHIR ID.
+            var entity = await _context.Patients
+                .FirstOrDefaultAsync(p => p.FhirId == id);
+
+            if (entity == null)
+            {
+                return CreateFhirOperationOutcome(
+                    "Patient resource was not found.",
+                    OperationOutcome.IssueType.NotFound,
+                    StatusCodes.Status404NotFound);
+            }
+            try
+            {
+                // Map the complete FHIR Patient resource to an entity.
+                var updatedEntity = PatientMapper.ToEntity(fhirPatient);
+
+                // Update the existing database entity.
+                // Keep the database primary key and FHIR resource ID unchanged.
+                entity.FamilyName = updatedEntity.FamilyName;
+                entity.GivenName = updatedEntity.GivenName;
+                entity.Gender = updatedEntity.Gender;
+                entity.BirthDate = updatedEntity.BirthDate;
+                entity.JsonData = updatedEntity.JsonData;
+
+                // Save the updated Patient resource.
+                await _context.SaveChangesAsync();
+
+                // Record the successful update in the audit log.
+                await _auditService.LogPatientAccessAsync(
+                    HttpContext,
+                    "UPDATE",
+                    entity.Id,
+                    entity.FhirId,
+                    StatusCodes.Status200OK);
+
+                _logger.LogInformation(
+                    "FHIR Patient updated successfully. ID: {PatientId}",
+                    id);
+
+                // Return the updated FHIR Patient resource.
+                return new FhirResult(
+                    fhirPatient,
+                    StatusCodes.Status200OK);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Failed to update FHIR Patient. ID: {PatientId}",
+                    id);
+
+                return CreateFhirOperationOutcome(
+                    "An internal error occurred while updating the Patient resource.",
+                    OperationOutcome.IssueType.Exception,
+                    StatusCodes.Status500InternalServerError);
+            }
+
+        }
+
         //DELETE: api/patient/5
         [Authorize(Policy = "ProviderOnly")]
         [HttpDelete("delete/{id}")]
@@ -454,6 +581,19 @@ namespace FHIR_IHE_API.Controllers
             }
 
             return PatientMapper.ToFhirFromEntity(entity);
+        }
+
+        private FhirResult CreateFhirOperationOutcome (string diagnostics, OperationOutcome.IssueType issueType, int statusCode)
+        {
+            var outcome = new OperationOutcome();
+
+            outcome.Issue.Add(new OperationOutcome.IssueComponent
+            {
+                Severity = OperationOutcome.IssueSeverity.Error,
+                Code = issueType,
+                Diagnostics = diagnostics
+            });
+            return new FhirResult(outcome, statusCode);
         }
 
     }
