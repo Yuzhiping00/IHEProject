@@ -264,6 +264,184 @@ namespace FHIR_IHE_API.Tests.Services
             Assert.True(result);
         }
 
+
+        [Fact]
+        public void ExpandValueSet_ShouldReturnFourAdministrativeGenderCodes()
+        {
+            // Arrange
+            var service = new TerminologyService();
+
+            // Act
+            var result = service.ExpandValueSet("administrative-gender");
+
+            // Assert
+            Assert.IsType<ValueSet>(result);
+            Assert.Equal("ValueSet", result.TypeName);
+            Assert.NotNull(result.Expansion);
+            Assert.Equal(4, result.Expansion.Total);
+            Assert.Equal(4, result.Expansion.Contains.Count);
+        }
+
+        [Theory]
+        [InlineData("male")]
+        [InlineData("female")]
+        [InlineData("other")]
+        [InlineData("unknown")]
+        public void IsCodeInValueSet_ShouldReturnTrue_ForValidAdministrativeGenderCodes(
+            string code)
+        {
+            // Arrange
+            var service = new TerminologyService();
+
+            // Act
+            var result = service.IsCodeInValueSet(
+                "administrative-gender",
+                "http://hl7.org/fhir/administrative-gender",
+                code);
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public void IsCodeInValueSet_ShouldReturnFalse_ForInvalidCode()
+        {
+            // Arrange
+            var service = new TerminologyService();
+
+            // Act
+            var result = service.IsCodeInValueSet(
+                "administrative-gender",
+                "http://hl7.org/fhir/administrative-gender",
+                "invalid");
+
+            // Assert
+            Assert.False(result);
+        }
+
+        [Fact]
+        public void IsCodeInValueSet_ShouldReturnFalse_ForUnknownValueSet()
+        {
+            // Arrange
+            var service = new TerminologyService();
+
+            // Act
+            var result = service.IsCodeInValueSet(
+                "unknown-valueset",
+                "http://hl7.org/fhir/administrative-gender",
+                "male");
+
+            // Assert
+            Assert.False(result);
+        }
+
+        [Fact]
+        public void IsCodeInValueSet_ShouldReturnFalse_ForWrongCodeSystem()
+        {
+            // Arrange
+            var service = new TerminologyService();
+
+            // Act
+            var result = service.IsCodeInValueSet(
+                "administrative-gender",
+                "http://example.org/unknown-system",
+                "male");
+
+            // Assert
+            Assert.False(result);
+        }
+
+        [Fact]
+        public void ValidateValueSetCode_ShouldReturnTrue_ForValidCodeAndDisplay()
+        {
+            // Arrange
+            var service = new TerminologyService();
+
+            // Act
+            var result = service.ValidateValueSetCode(
+                "administrative-gender",
+                "http://hl7.org/fhir/administrative-gender",
+                "male",
+                "Male");
+
+            // Assert
+            Assert.True(result.IsValid);
+            Assert.True(result.ValueSetFound);
+            Assert.True(result.SystemFound);
+            Assert.Equal("male", result.Code);
+            Assert.Equal("Male", result.ExpectedDisplay);
+        }
+
+        [Fact]
+        public void ValidateValueSetCode_ShouldReturnFalse_ForInvalidCode()
+        {
+            // Arrange
+            var service = new TerminologyService();
+
+            // Act
+            var result = service.ValidateValueSetCode(
+                "administrative-gender",
+                "http://hl7.org/fhir/administrative-gender",
+                "invalid");
+
+            // Assert
+            Assert.False(result.IsValid);
+            Assert.True(result.ValueSetFound);
+            Assert.True(result.SystemFound);
+        }
+
+        [Fact]
+        public void ValidateValueSetCode_ShouldReturnFalse_ForIncorrectDisplay()
+        {
+            // Arrange
+            var service = new TerminologyService();
+
+            // Act
+            var result = service.ValidateValueSetCode(
+                "administrative-gender",
+                "http://hl7.org/fhir/administrative-gender",
+                "male",
+                "Female");
+
+            // Assert
+            Assert.False(result.IsValid);
+            Assert.Equal("Male", result.ExpectedDisplay);
+        }
+
+        [Fact]
+        public void ValidateValueSetCode_ShouldReturnFalse_ForUnknownSystem()
+        {
+            // Arrange
+            var service = new TerminologyService();
+
+            // Act
+            var result = service.ValidateValueSetCode(
+                "administrative-gender",
+                "http://example.org/unknown-system",
+                "male");
+
+            // Assert
+            Assert.False(result.IsValid);
+            Assert.True(result.ValueSetFound);
+            Assert.False(result.SystemFound);
+        }
+
+        [Fact]
+        public void ValidateValueSetCode_ShouldIndicateMissingValueSet()
+        {
+            // Arrange
+            var service = new TerminologyService();
+
+            // Act
+            var result = service.ValidateValueSetCode(
+                "unknown-valueset",
+                "http://hl7.org/fhir/administrative-gender",
+                "male");
+
+            // Assert
+            Assert.False(result.IsValid);
+            Assert.False(result.ValueSetFound);
+        }
     }
 }
 
