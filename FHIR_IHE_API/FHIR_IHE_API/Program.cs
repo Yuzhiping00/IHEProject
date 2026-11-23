@@ -34,6 +34,7 @@ namespace FHIR_IHE_API
 
             builder.Services.AddScoped<AuditService>();
             builder.Services.AddScoped<PatientAuthorizationService>();
+            builder.Services.AddSingleton<TerminologyService>();
 
             // ----------------------------------------
             // ASP.NET Core Identity
