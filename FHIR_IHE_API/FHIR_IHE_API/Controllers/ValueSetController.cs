@@ -72,17 +72,41 @@ namespace FHIR_IHE_API.Controllers
 
         [HttpGet("{id}/$validate-code")]
         [Produces("application/fhir+json")]
-        public IActionResult ValidateCode(string id, [FromQuery] string system, [FromQuery] string code,
+        public IActionResult ValidateCode(string id, [FromQuery] string? system, [FromQuery] string? code,
             [FromQuery] string? display = null)
         {
+
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                return OperationOutcomeResponse(
+                    StatusCodes.Status400BadRequest,
+                    "Error",
+                    "Required", "The 'code' parameter is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(system))
+            {
+                return OperationOutcomeResponse(
+                    StatusCodes.Status400BadRequest,
+                    "Error",
+                    "Required",
+                    "The 'system' parameter is required.");
+            }
+
             if (string.IsNullOrWhiteSpace(id) || !System.Text.RegularExpressions.Regex.IsMatch(id, @"^[A-Za-z0-9.-]{1,64}$"))
             {
                 return BadRequest();
             }
 
-            if (string.IsNullOrWhiteSpace(system) || string.IsNullOrWhiteSpace(code))
+            var valueSet = _terminologyService.GetValueSetById(id);
+
+            if (valueSet == null)
             {
-                return BadRequest();
+                return OperationOutcomeResponse(
+                    StatusCodes.Status404NotFound,
+                    "Error",
+                    "NotFound",
+                    $"ValueSet '{id}' was not found.");
             }
 
             var validationResult = _terminologyService.ValidateValueSetCode(id, system, code, display);
@@ -111,6 +135,23 @@ namespace FHIR_IHE_API.Controllers
 
             return new FhirResult(parameters);
 
+        }
+
+        private IActionResult OperationOutcomeResponse(int statusCode, string severity, string code, string diagnostics)
+        {
+            var outcome = new OperationOutcome();
+
+            outcome.Issue.Add(
+                new OperationOutcome.IssueComponent
+                {
+                    Severity = Enum.Parse<OperationOutcome.IssueSeverity>(severity, ignoreCase:true), 
+
+                    Code = Enum.Parse<OperationOutcome.IssueType>(code, ignoreCase:true),
+
+                    Diagnostics = diagnostics
+                });
+
+            return new FhirResult(outcome, statusCode);
         }
     }
 }
